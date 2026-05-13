@@ -14,6 +14,7 @@ from src.signals.base_signals import (
     generate_day_trading_signals,
     generate_intraday_signals
 )
+from src.signals.ml_filter import train_ml_filter, apply_ml_filter, add_ml_features
 
 
 def test_scalping_signals():
@@ -39,3 +40,14 @@ def test_intraday_signals():
     df = generate_intraday_signals(df)
     assert 'signal' in df.columns
     assert df['signal'].isin([0, 1, -1]).all()
+
+
+def test_ml_filter():
+    df = load_data('NQ_15min_processed.csv')
+    df = calculate_day_trading_indicators(df)
+    df = generate_day_trading_signals(df)
+    df = add_ml_features(df)
+    ml_data = train_ml_filter(df)
+    if ml_data:
+        df_test = apply_ml_filter(df, ml_data)
+        assert 'ml_signal' in df_test.columns
