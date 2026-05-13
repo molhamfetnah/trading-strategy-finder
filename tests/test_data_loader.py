@@ -18,8 +18,8 @@ def test_load_1min_data():
 
 def test_load_15min_data():
     df = load_data('NQ_15min_processed.csv')
-    assert 'open' in df.columns
-    assert 'high' in df.columns
+    assert 'Open' in df.columns
+    assert 'High' in df.columns
 
 
 def test_filter_2025_data():
