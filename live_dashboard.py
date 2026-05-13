@@ -4,10 +4,6 @@ Live Trading Dashboard Demo
 Visualizes trading algorithm performance with real-time simulation
 """
 
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-import time
 import sys
 import os
 
@@ -28,12 +24,12 @@ from src.backtest.engine import run_backtest
 from src.backtest.metrics import calculate_metrics
 
 
-def create_live_dashboard():
-    """Create comprehensive live trading dashboard."""
+def create_live_simulation():
+    """Run live trading simulation."""
     
-    print("\n" + "="*80)
-    print("🔴 LIVE TRADING DASHBOARD DEMO")
-    print("="*80)
+    print("\n" + "="*60)
+    print("NASDAQ TRADING ALGORITHM - LIVE DEMO")
+    print("="*60)
     print("\nLoading data...")
     
     df_1min = load_data('1min.csv')
@@ -43,9 +39,7 @@ def create_live_dashboard():
     print(f"Test data: {len(test_1min)} candles")
     print(f"Date range: {test_1min['Date'].min()} to {test_1min['Date'].max()}")
     
-    print("\n" + "-"*80)
-    print("📊 PREPING DATA FOR LIVE SIMULATION...")
-    print("-"*80)
+    print("\nPreparing data...")
     
     df = test_1min.copy().reset_index(drop=True)
     df = calculate_scalping_indicators(df)
@@ -54,41 +48,34 @@ def create_live_dashboard():
     ml_data = train_ml_filter(df)
     df = apply_ml_filter(df, ml_data)
     
-    trades_list = []
     capital = 10000
     position = None
     entry_price = 0
-    entry_idx = 0
     entry_time = ""
     
     simulated_trades = []
     
-    print(f"\n{'='*80}")
-    print("🎯 LIVE TRADING SIMULATION - SCALPING STRATEGY")
-    print("="*80)
-    print(f"{'Time':<20} {'Price':>10} {'Signal':>8} {'Action':>10} {'P/L':>12} {'Capital':>12}")
-    print("-"*80)
+    print("\n" + "-"*60)
+    print("LIVE TRADING SIMULATION - SCALPING STRATEGY")
+    print("-"*60)
+    print("Time                      Price   Signal  Action      P/L      Capital")
+    print()
     
     for i in range(len(df)):
         row = df.iloc[i]
-        
         signal = row.get('ml_signal', row.get('signal', 0))
-        
         candle_time = f"{row['Date']} {row['Time']}"
         
         if position is None and signal != 0:
             position = signal
             entry_price = row['Close']
-            entry_idx = i
             entry_time = candle_time
-            
-            action = "📈 BUY" if signal == 1 else "📉 SELL"
-            print(f"{candle_time:<20} {entry_price:>10.2f} {signal:>8} {action:>10} {'---':>12} {capital:>12.2f}")
+            action = "BUY" if signal == 1 else "SELL"
+            print(f"{candle_time:<20} {entry_price:>10.2f} {signal:>8} {action:>10} ---     {capital:>10.2f}")
         
         elif position is not None:
             current_price = row['Close']
             price_change_pct = (current_price - entry_price) / entry_price * 100
-            
             if position == -1:
                 price_change_pct = -price_change_pct
             
@@ -99,7 +86,7 @@ def create_live_dashboard():
                 profit = capital * (price_change_pct / 100)
                 capital += profit
                 
-                trade_result = {
+                simulated_trades.append({
                     'entry_time': entry_time,
                     'exit_time': candle_time,
                     'direction': 'LONG' if position == 1 else 'SHORT',
@@ -109,62 +96,43 @@ def create_live_dashboard():
                     'profit_dollars': profit,
                     'capital_after': capital,
                     'exit_reason': 'TAKE PROFIT' if take_profit_triggered else 'STOP LOSS'
-                }
-                simulated_trades.append(trade_result)
+                })
                 
-                status = "✅" if profit > 0 else "❌"
-                print(f"{candle_time:<20} {current_price:>10.2f} {0:>8} {status} EXIT    {profit:>+10.2f} {capital:>12.2f}")
+                status = "WIN" if profit > 0 else "LOSS"
+                print(f"{candle_time:<20} {current_price:>10.2f} {0:>8} EXIT   {status}   {profit:>+8.2f} {capital:>10.2f}")
                 
                 position = None
     
-    print("-"*80)
-    
-    print(f"\n{'='*80}")
-    print("📊 TRADING PERFORMANCE SUMMARY")
-    print("="*80)
-    
     winning = [t for t in simulated_trades if t['profit_dollars'] > 0]
     losing = [t for t in simulated_trades if t['profit_dollars'] <= 0]
-    
-    print(f"\n{'📈 TRADE BREAKDOWN':^40}")
-    print("-"*40)
-    print(f"Total Trades:      {len(simulated_trades)}")
-    print(f"Winning Trades:    {len(winning)} ({len(winning)/len(simulated_trades)*100:.1f}%)" if simulated_trades else "Winning Trades:    0")
-    print(f"Losing Trades:     {len(losing)} ({len(losing)/len(simulated_trades)*100:.1f}%)" if simulated_trades else "Losing Trades:     0")
-    
-    print(f"\n{'💰 PROFIT ANALYSIS':^40}")
-    print("-"*40)
     total_profit = sum(t['profit_dollars'] for t in simulated_trades)
-    gross_profit = sum(t['profit_dollars'] for t in winning) if winning else 0
-    gross_loss = abs(sum(t['profit_dollars'] for t in losing)) if losing else 0
-    profit_factor = gross_profit / gross_loss if gross_loss > 0 else 0
     
-    print(f"Initial Capital:    $10,000.00")
-    print(f"Final Capital:      ${capital:,.2f}")
-    print(f"Total Profit:       ${total_profit:,.2f}")
-    print(f"Profit Factor:      {profit_factor:.2f}")
-    print(f"ROI:                {total_profit/100:.2f}%")
+    print()
+    print("="*60)
+    print("PERFORMANCE SUMMARY")
+    print("="*60)
+    print(f"Initial Capital:  $10,000.00")
+    print(f"Final Capital:    ${capital:,.2f}")
+    print(f"Total Profit:     ${total_profit:,.2f}")
+    print(f"Total Trades:     {len(simulated_trades)}")
+    print(f"Winners:          {len(winning)} ({len(winning)/len(simulated_trades)*100:.1f}%)" if simulated_trades else "")
+    print(f"Losers:           {len(losing)} ({len(losing)/len(simulated_trades)*100:.1f}%)" if simulated_trades else "")
     
-    print(f"\n{'📋 TRADE LOG':^40}")
-    print("-"*40)
-    print(f"{'#':<4} {'Direction':<8} {'Entry':>10} {'Exit':>10} {'P/L %':>8} {'P/L $':>10} {'Exit Reason':<15}")
-    print("-"*40)
-    
+    print("\nTRADE LOG:")
+    print(f"{'#':<3} {'Dir':<5} {'Entry':>10} {'Exit':>10} {'P/L%':>8} {'P/L$':>10} {'Reason':<12}")
     for idx, trade in enumerate(simulated_trades, 1):
-        direction_emoji = "📈" if trade['direction'] == 'LONG' else "📉"
-        print(f"{idx:<4} {direction_emoji}{trade['direction']:<5} {trade['entry_price']:>10.2f} {trade['exit_price']:>10.2f} {trade['profit_pct']:>+7.2f}% ${trade['profit_dollars']:>+9.2f} {trade['exit_reason']:<15}")
-    
-    print("-"*40)
+        direction = "L" if trade['direction'] == 'LONG' else "S"
+        print(f"{idx:<3} {direction:<5} {trade['entry_price']:>10.2f} {trade['exit_price']:>10.2f} {trade['profit_pct']:>+7.2f}% ${trade['profit_dollars']:>+9.2f} {trade['exit_reason']:<12}")
     
     return simulated_trades, capital
 
 
-def create_comparison_dashboard():
-    """Create dashboard comparing different strategies."""
+def run_strategy_comparison():
+    """Compare all three strategies."""
     
-    print("\n" + "="*80)
-    print("🔄 STRATEGY COMPARISON DASHBOARD")
-    print("="*80)
+    print("\n" + "="*60)
+    print("STRATEGY COMPARISON")
+    print("="*60)
     
     df_1min = load_data('1min.csv')
     df_15min = load_data('NQ_15min_processed.csv')
@@ -177,89 +145,74 @@ def create_comparison_dashboard():
     
     results = {}
     
-    print("\n🎯 Running Scalping Strategy (1min)...")
+    # Scalping
+    print("\nRunning Scalping Strategy (1min)...")
     train = calculate_scalping_indicators(train_1min.copy())
     train = generate_scalping_signals(train)
     train = add_ml_features(train)
     ml_data = train_ml_filter(train)
-    
     test = calculate_scalping_indicators(test_1min.copy())
     test = generate_scalping_signals(test)
     test = apply_ml_filter(test, ml_data)
-    
-    trades_scalping, capital_scalping = run_backtest(test, initial_capital=10000, stop_loss=0.5, take_profit=1.5)
+    trades_scalping, _ = run_backtest(test, initial_capital=10000, stop_loss=0.5, take_profit=1.5)
     metrics_scalping = calculate_metrics(trades_scalping, 10000)
     results['scalping'] = {'trades': trades_scalping, 'metrics': metrics_scalping}
-    print(f"   Trades: {len(trades_scalping)}, Profit: ${metrics_scalping['total_profit']:.2f}")
     
-    print("🎯 Running Day Trading Strategy (15min)...")
+    # Day Trading
+    print("Running Day Trading Strategy (15min)...")
     train_dt = calculate_day_trading_indicators(train_15min.copy())
     train_dt = generate_day_trading_signals(train_dt)
     train_dt = add_ml_features(train_dt)
     ml_data_dt = train_ml_filter(train_dt)
-    
     test_dt = calculate_day_trading_indicators(test_15min.copy())
     test_dt = generate_day_trading_signals(test_dt)
     test_dt = apply_ml_filter(test_dt, ml_data_dt)
-    
-    trades_day, capital_day = run_backtest(test_dt, initial_capital=10000, stop_loss=1.0, take_profit=2.0)
+    trades_day, _ = run_backtest(test_dt, initial_capital=10000, stop_loss=1.0, take_profit=2.0)
     metrics_day = calculate_metrics(trades_day, 10000)
     results['day_trading'] = {'trades': trades_day, 'metrics': metrics_day}
-    print(f"   Trades: {len(trades_day)}, Profit: ${metrics_day['total_profit']:.2f}")
     
-    print("🎯 Running Intraday Strategy (15min)...")
+    # Intraday
+    print("Running Intraday Strategy (15min)...")
     train_intra = calculate_intraday_indicators(train_15min.copy())
     train_intra = generate_intraday_signals(train_intra)
     train_intra = add_ml_features(train_intra)
     ml_data_intra = train_ml_filter(train_intra)
-    
     test_intra = calculate_intraday_indicators(test_15min.copy())
     test_intra = generate_intraday_signals(test_intra)
     test_intra = apply_ml_filter(test_intra, ml_data_intra)
-    
-    trades_intra, capital_intra = run_backtest(test_intra, initial_capital=10000, stop_loss=1.0, take_profit=2.0)
+    trades_intra, _ = run_backtest(test_intra, initial_capital=10000, stop_loss=1.0, take_profit=2.0)
     metrics_intra = calculate_metrics(trades_intra, 10000)
     results['intraday'] = {'trades': trades_intra, 'metrics': metrics_intra}
-    print(f"   Trades: {len(trades_intra)}, Profit: ${metrics_intra['total_profit']:.2f}")
     
-    print("\n" + "="*80)
-    print("📊 STRATEGY COMPARISON RESULTS")
-    print("="*80)
-    print(f"{'Strategy':<15} {'Trades':>8} {'Profit':>12} {'Win Rate':>10} {'PF':>8} {'Sharpe':>8} {'DD':>8}")
-    print("-"*80)
+    print("\nSTRATEGY RESULTS:")
+    print(f"{'Strategy':<15} {'Trades':>8} {'Profit':>12} {'Win Rate':>10} {'PF':>6} {'DD':>6}")
+    print("-" * 60)
     
     for name, data in results.items():
         m = data['metrics']
-        emoji = "🏆" if m['total_profit'] == max(r['metrics']['total_profit'] for r in results.values()) else "  "
-        print(f"{emoji}{name:<13} {m['total_trades']:>8} ${m['total_profit']:>11.2f} {m['win_rate']:>9.1f}% {m['profit_factor']:>8.2f} {m['sharpe_ratio']:>8.2f} {m['max_drawdown']:>7.1f}%")
-    
-    print("-"*80)
+        best = "BEST" if m['total_profit'] == max(r['metrics']['total_profit'] for r in results.values()) else ""
+        profit_str = f"${m['total_profit']:.2f}" if m['total_profit'] >= 0 else f"-${abs(m['total_profit']):.2f}"
+        print(f"{name:<15} {m['total_trades']:>8} {profit_str:>12} {m['win_rate']:>9.1f}% {m['profit_factor']:>6.2f} {m['max_drawdown']:>5.1f}%  {best}")
     
     best = max(results.items(), key=lambda x: x[1]['metrics']['total_profit'])
-    worst = min(results.items(), key=lambda x: x[1]['metrics']['total_profit'])
-    
-    print(f"\n🏆 BEST STRATEGY: {best[0].upper()}")
-    print(f"   Total Profit: ${best[1]['metrics']['total_profit']:.2f}")
-    print(f"   Final Capital: ${best[1]['metrics']['final_capital']:.2f}")
-    
-    print(f"\n⚠️  WORST STRATEGY: {worst[0].upper()}")
-    print(f"   Total Loss: ${worst[1]['metrics']['total_profit']:.2f}")
+    print(f"\nBest Strategy: {best[0].upper()} (${best[1]['metrics']['total_profit']:.2f})")
     
     return results
 
 
-def create_visual_dashboard():
-    """Create visual HTML dashboard."""
+def create_html_dashboard():
+    """Generate HTML dashboard with plotly charts."""
     try:
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
     except ImportError:
-        print("\n⚠️  Plotly not available for HTML dashboard. Install with: pip install plotly")
-        return
+        print("\nPlotly not installed. Skipping HTML dashboard.")
+        print("Install with: pip install plotly")
+        return None
     
-    print("\n" + "="*80)
-    print("📊 GENERATING VISUAL DASHBOARD")
-    print("="*80)
+    print("\n" + "="*60)
+    print("GENERATING HTML DASHBOARD")
+    print("="*60)
     
     df_1min = load_data('1min.csv')
     df_2025 = filter_2025(df_1min)
@@ -273,9 +226,9 @@ def create_visual_dashboard():
     df = apply_ml_filter(df, ml_data)
     
     trades, final_capital = run_backtest(df, initial_capital=10000, stop_loss=0.5, take_profit=1.5)
+    metrics = calculate_metrics(trades, 10000)
     
-    print(f"\nCreating chart with {len(df)} candles and {len(trades)} trades...")
-    
+    # Candlestick chart
     fig = make_subplots(
         rows=3, cols=1,
         shared_xaxes=True,
@@ -284,101 +237,63 @@ def create_visual_dashboard():
         row_heights=[0.5, 0.25, 0.25]
     )
     
-    fig.add_trace(
-        go.Candlestick(
-            x=df.index,
-            open=df['Open'],
-            high=df['High'],
-            low=df['Low'],
-            close=df['Close'],
-            name='Price',
-            increasing_line_color='#26a69a',
-            decreasing_line_color='#ef5350'
-        ),
-        row=1, col=1
-    )
+    fig.add_trace(go.Candlestick(
+        x=df.index,
+        open=df['Open'],
+        high=df['High'],
+        low=df['Low'],
+        close=df['Close'],
+        name='Price',
+        increasing_line_color='#26a69a',
+        decreasing_line_color='#ef5350'
+    ), row=1, col=1)
     
-    fig.add_trace(
-        go.Scatter(
-            x=df.index,
-            y=df['ema_5'],
-            line=dict(color='#2196F3', width=1),
-            name='EMA 5'
-        ),
-        row=1, col=1
-    )
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df['ema_5'],
+        line=dict(color='#2196F3', width=1),
+        name='EMA 5'
+    ), row=1, col=1)
     
-    fig.add_trace(
-        go.Scatter(
-            x=df.index,
-            y=df['ema_20'],
-            line=dict(color='#FF9800', width=1),
-            name='EMA 20'
-        ),
-        row=1, col=1
-    )
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df['ema_20'],
+        line=dict(color='#FF9800', width=1),
+        name='EMA 20'
+    ), row=1, col=1)
     
     for trade in trades:
         color = '#00C853' if trade['profit_dollars'] > 0 else '#FF1744'
+        fig.add_trace(go.Scatter(
+            x=[trade['entry_idx']],
+            y=[df.iloc[trade['entry_idx']]['Low'] * 0.999],
+            mode='markers',
+            marker=dict(symbol='triangle-up', size=15, color='#00E676'),
+            showlegend=False
+        ), row=1, col=1)
         
-        fig.add_trace(
-            go.Scatter(
-                x=[trade['entry_idx']],
-                y=[df.iloc[trade['entry_idx']]['Low'] * 0.999],
-                mode='markers',
-                marker=dict(
-                    symbol='triangle-up',
-                    size=15,
-                    color='#00E676',
-                    line=dict(width=2, color='#000000')
-                ),
-                name='Entry',
-                showlegend=False
-            ),
-            row=1, col=1
-        )
-        
-        fig.add_trace(
-            go.Scatter(
-                x=[trade['exit_idx']],
-                y=[df.iloc[trade['exit_idx']]['High'] * 1.001],
-                mode='markers',
-                marker=dict(
-                    symbol='triangle-down',
-                    size=15,
-                    color=color,
-                    line=dict(width=2, color='#000000')
-                ),
-                name=f"{'Win' if trade['profit_dollars'] > 0 else 'Loss'} ${trade['profit_dollars']:.0f}",
-                showlegend=True
-            ),
-            row=1, col=1
-        )
+        fig.add_trace(go.Scatter(
+            x=[trade['exit_idx']],
+            y=[df.iloc[trade['exit_idx']]['High'] * 1.001],
+            mode='markers',
+            marker=dict(symbol='triangle-down', size=15, color=color),
+            name=f"{'Win' if trade['profit_dollars'] > 0 else 'Loss'} ${trade['profit_dollars']:.0f}",
+            showlegend=True
+        ), row=1, col=1)
     
-    fig.add_trace(
-        go.Scatter(
-            x=df.index,
-            y=df['rsi_7'],
-            line=dict(color='#9C27B0', width=1),
-            name='RSI'
-        ),
-        row=2, col=1
-    )
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df['rsi_7'],
+        line=dict(color='#9C27B0', width=1),
+        name='RSI'
+    ), row=2, col=1)
     
     fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
     fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
     
-    fig.add_trace(
-        go.Bar(
-            x=df.index,
-            y=df['Volume'],
-            marker_color=df['Volume'].apply(lambda x: '#26a69a' if x > df['Volume'].mean() * 1.5 else '#90A4AE'),
-            name='Volume'
-        ),
-        row=3, col=1
-    )
-    
-    metrics = calculate_metrics(trades, 10000)
+    fig.add_trace(go.Bar(
+        x=df.index,
+        y=df['Volume'],
+        marker_color=df['Volume'].apply(lambda x: '#26a69a' if x > df['Volume'].mean() * 1.5 else '#90A4AE'),
+        name='Volume'
+    ), row=3, col=1)
     
     fig.update_layout(
         title=dict(
@@ -387,18 +302,11 @@ def create_visual_dashboard():
                  f"Total Profit: ${metrics['total_profit']:.2f} | " +
                  f"Win Rate: {metrics['win_rate']:.1f}% | " +
                  f"Trades: {metrics['total_trades']}</span>",
-            x=0.5,
-            font=dict(size=16)
+            x=0.5, font=dict(size=16)
         ),
         height=900,
         showlegend=True,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="center",
-            x=0.5
-        ),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
         template="plotly_dark"
     )
     
@@ -428,57 +336,41 @@ def create_visual_dashboard():
         showlegend=False
     )
     
-    print("\n💾 Saving dashboard to HTML files...")
+    print("\nSaving HTML dashboards...")
+    fig.write_html('docs/live_trading_dashboard.html', auto_open=False)
+    fig2.write_html('docs/equity_curve_dashboard.html', auto_open=False)
     
-    fig.write_html('live_trading_dashboard.html', auto_open=False)
-    fig2.write_html('equity_curve_dashboard.html', auto_open=False)
-    
-    print("✅ Dashboard saved: live_trading_dashboard.html")
-    print("✅ Equity curve saved: equity_curve_dashboard.html")
+    print("Dashboard saved: docs/live_trading_dashboard.html")
+    print("Equity curve saved: docs/equity_curve_dashboard.html")
     
     return metrics
 
 
 def main():
-    print("\n" + "="*80)
-    print("🚀 NASDAQ TRADING ALGORITHM - LIVE DEMO")
-    print("="*80)
+    print("\n" + "="*60)
+    print("NASDAQ TRADING ALGORITHM - LIVE DEMO")
+    print("="*60)
+    print("\nTest Period: July - September 2025")
+    print("Initial Capital: $10,000")
+    print("Strategy: Scalping (1min)")
+    print("Risk: Stop Loss 0.5% | Take Profit 1.5%")
     
-    print("\n📅 Test Period: July - September 2025")
-    print("💰 Initial Capital: $10,000")
-    print("🎯 Strategy: Scalping (1min)")
-    print("⚙️ Stop Loss: 0.5% | Take Profit: 1.5%")
+    trades, final_capital = create_live_simulation()
+    results = run_strategy_comparison()
+    create_html_dashboard()
     
-    simulated_trades, final_capital = create_live_dashboard()
-    
-    results = create_comparison_dashboard()
-    
-    try:
-        create_visual_dashboard()
-    except Exception as e:
-        print(f"\n⚠️  Could not create visual dashboard: {e}")
-    
-    print("\n" + "="*80)
-    print("🎉 DEMO COMPLETE!")
-    print("="*80)
-    
-    print("\n📊 SUMMARY:")
-    print(f"   Total Strategies Tested: 3")
-    print(f"   Best Strategy: SCALPING (${results['scalping']['metrics']['total_profit']:.2f})")
-    print(f"   Total Trades: {sum(len(r['trades']) for r in results.values())}")
-    print(f"   Combined Profit: ${sum(r['metrics']['total_profit'] for r in results.values()):.2f}")
-    
-    print("\n📁 Output Files:")
-    print("   - live_trading_dashboard.html (if plotly installed)")
-    print("   - equity_curve_dashboard.html (if plotly installed)")
-    print("\n🌐 Open HTML files in browser to see visual dashboard!")
-    
-    print("\n🔗 Next Steps for Live Trading:")
-    print("   1. Connect to live data feed (WebSocket/API)")
-    print("   2. Add broker integration (Interactive Brokers/Alpaca)")
-    print("   3. Implement real-time signal alerts")
-    print("   4. Add position management and risk controls")
-    print("="*80 + "\n")
+    print("\n" + "="*60)
+    print("DEMO COMPLETE!")
+    print("="*60)
+    print(f"\nSummary:")
+    print(f"  Total Strategies Tested: 3")
+    print(f"  Best Strategy: SCALPING")
+    print(f"  Total Trades: {sum(len(r['trades']) for r in results.values())}")
+    print(f"\nOutput Files:")
+    print("  - docs/live_trading_dashboard.html")
+    print("  - docs/equity_curve_dashboard.html")
+    print("\nOpen HTML files in browser to see visual dashboard!")
+    print("="*60 + "\n")
 
 
 if __name__ == '__main__':
