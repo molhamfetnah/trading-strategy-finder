@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from src.data.loader import load_data
 from src.data.splitter import filter_2025, split_train_test
+from src.data.resampler import resample_to_timeframe
 
 
 def test_load_1min_data():
@@ -34,3 +35,18 @@ def test_split_train_test():
     train, test = split_train_test(df_2025, '2025-06-30')
     assert train['Date'].max() <= pd.Timestamp('2025-06-30')
     assert test['Date'].min() >= pd.Timestamp('2025-07-01')
+
+
+def test_resample_1min_to_5min():
+    df = load_data('1min.csv')
+    df_2025 = filter_2025(df)
+    df_5min = resample_to_timeframe(df_2025, '5min')
+    assert len(df_5min) < len(df_2025)
+    assert 'Open' in df_5min.columns
+
+
+def test_resample_1min_to_15min():
+    df = load_data('1min.csv')
+    df_2025 = filter_2025(df)
+    df_15min = resample_to_timeframe(df_2025, '15min')
+    assert len(df_15min) < len(df_2025)
