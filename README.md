@@ -143,6 +143,57 @@ Initial capital: $10,000
    - Trend vs range market filtering
    - Volume profile analysis
 
+## Live Trading Dashboard Demo
+
+A complete live trading simulation has been pre-run and documented in `demo/live-demo/`.
+
+### Demo Contents
+
+```
+demo/live-demo/
+├── README.md                    # Full demo documentation
+├── console-output.txt           # Complete terminal output
+├── trades-summary.json         # Machine-readable trade data
+├── strategy-comparison.json     # Strategy comparison results
+├── live_trading_dashboard.html  # Interactive candlestick chart
+└── equity_curve_dashboard.html  # Equity curve visualization
+```
+
+### Quick Demo
+
+```bash
+# Run live dashboard simulation
+python3 live_dashboard.py
+
+# View interactive HTML dashboard
+open demo/live-demo/live_trading_dashboard.html
+```
+
+### Demo Results Summary
+
+| Metric | Value |
+|--------|-------|
+| Test Period | July - September 2025 |
+| Initial Capital | $10,000 |
+| Final Capital | $10,107.66 |
+| Total Profit | +$107.66 (1.08%) |
+| Total Trades | 17 |
+| Win Rate | 29.4% |
+| Best Strategy | Scalping (1min) |
+
+### Sample Trade Log
+
+| # | Direction | Entry | Exit | P/L $ | Reason |
+|---|-----------|-------|------|-------|--------|
+| 1 | SHORT | 24746.75 | 24885.00 | -$55.87 | STOP LOSS |
+| 6 | SHORT | 23579.50 | 23210.50 | +$148.38 | TAKE PROFIT |
+| 7 | LONG | 23471.50 | 23823.75 | +$148.42 | TAKE PROFIT |
+| 17 | SHORT | 23033.50 | 22680.00 | +$152.78 | TAKE PROFIT |
+
+For detailed results, see [demo/live-demo/README.md](demo/live-demo/README.md)
+
+---
+
 ## Development
 
 ```bash

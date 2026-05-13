@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "demo_name": "Strategy Comparison Results",
+    "test_period": "July - September 2025",
+    "initial_capital": 10000,
+    "date": "2025-05-13"
+  },
+  "strategies": {
+    "scalping": {
+      "name": "Scalping",
+      "timeframe": "1 minute",
+      "indicators": ["RSI(7)", "EMA(5,20)", "Volume spike"],
+      "stop_loss": 0.5,
+      "take_profit": 1.5,
+      "metrics": {
+        "total_trades": 17,
+        "winning_trades": 5,
+        "losing_trades": 12,
+        "win_rate": 29.4,
+        "total_profit": 107.66,
+        "profit_factor": 1.17,
+        "sharpe_ratio": 0.07,
+        "max_drawdown": 2.6,
+        "final_capital": 10107.66
+      },
+      "status": "BEST"
+    },
+    "day_trading": {
+      "name": "Day Trading",
+      "timeframe": "15 minute",
+      "indicators": ["MACD(12,26,9)", "VWAP", "RSI(14)", "ATR"],
+      "stop_loss": 1.0,
+      "take_profit": 2.0,
+      "metrics": {
+        "total_trades": 23,
+        "winning_trades": 6,
+        "losing_trades": 17,
+        "win_rate": 26.1,
+        "total_profit": -719.55,
+        "profit_factor": 0.62,
+        "sharpe_ratio": -0.23,
+        "max_drawdown": 11.2,
+        "final_capital": 9280.45
+      },
+      "status": "FAILED"
+    },
+    "intraday": {
+      "name": "Intraday/Swing",
+      "timeframe": "15 minute",
+      "indicators": ["Supertrend(10,3)", "ADX(14)", "Stochastic(14,3)"],
+      "stop_loss": 1.0,
+      "take_profit": 2.0,
+      "metrics": {
+        "total_trades": 0,
+        "winning_trades": 0,
+        "losing_trades": 0,
+        "win_rate": 0,
+        "total_profit": 0,
+        "profit_factor": 0,
+        "sharpe_ratio": 0,
+        "max_drawdown": 0,
+        "final_capital": 10000
+      },
+      "status": "NO_SIGNALS"
+    }
+  },
+  "comparison_summary": {
+    "best_strategy": "scalping",
+    "best_profit": 107.66,
+    "worst_strategy": "day_trading",
+    "worst_loss": -719.55,
+    "total_trades_all": 40,
+    "combined_profit": -611.89
+  },
+  "recommendations": {
+    "for_production": "Scalping strategy shows marginal profitability (1.17 PF). Requires parameter tuning before live trading.",
+    "parameter_tuning_needed": [
+      "RSI thresholds: 30/70 → 35/65",
+      "Volume threshold: 2.0x → 1.5x",
+      "Stop loss: 0.5% → 0.75%",
+      "Take profit: 1.5% → 2.0%"
+    ],
+    "ml_improvements": [
+      "Add candle pattern features",
+      "Try XGBoost instead of Random Forest",
+      "Increase training data"
+    ],
+    "risk_management": [
+      "Implement trailing stops",
+      "Add market regime filter",
+      "Dynamic position sizing"
+    ]
+  }
+}
