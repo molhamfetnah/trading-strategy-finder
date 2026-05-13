@@ -21,6 +21,20 @@ def load_data(filepath: str) -> pd.DataFrame:
     
     try:
         df = pd.read_csv(filepath)
+        df.columns = df.columns.str.strip()
+        col_mapping = {}
+        for col in df.columns:
+            col_lower = col.lower()
+            if col_lower in ['open', 'high', 'low', 'close', 'volume']:
+                col_mapping[col] = col.title()
+            elif col_lower == 'time':
+                col_mapping[col] = 'Time'
+            elif col_lower == 'date':
+                col_mapping[col] = 'Date'
+            elif col_lower == 'inc vol':
+                col_mapping[col] = 'IncVol'
+        if col_mapping:
+            df = df.rename(columns=col_mapping)
         return df
     except Exception as e:
         raise Exception(f"Error reading CSV: {e}")
