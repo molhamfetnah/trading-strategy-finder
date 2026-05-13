@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from src.data.loader import load_data
 from src.data.splitter import filter_2025, split_train_test
-from src.indicators.scalping import calculate_scalping_indicators
+from src.indicators.scalping import calculate_rsi, calculate_ema, calculate_volume_spike
 from src.indicators.day_trading import calculate_day_trading_indicators
 from src.indicators.intraday import calculate_intraday_indicators
 from src.signals.base_signals import (
@@ -29,20 +29,26 @@ def run_scalping_strategy(train_df, test_df, initial_capital=10000):
     """Run scalping strategy on 1min data."""
     print("\n--- Testing Scalping Strategy (1min) ---")
     
-    train_data = calculate_scalping_indicators(train_df.copy())
+    # Optimized parameters from fast_optimizer.py
+    train_data = calculate_rsi(train_df.copy(), period=5)
+    train_data = calculate_ema(train_data, periods=[5, 15])
+    train_data = calculate_volume_spike(train_data, threshold=2.0)
     train_data = generate_scalping_signals(train_data)
     train_data = add_ml_features(train_data)
     ml_data = train_ml_filter(train_data)
     
-    test_data = calculate_scalping_indicators(test_df.copy())
+    test_data = calculate_rsi(test_df.copy(), period=5)
+    test_data = calculate_ema(test_data, periods=[5, 15])
+    test_data = calculate_volume_spike(test_data, threshold=2.0)
     test_data = generate_scalping_signals(test_data)
+    test_data = add_ml_features(test_data)
     test_data = apply_ml_filter(test_data, ml_data)
     
     trades, final_capital = run_backtest(
         test_data,
         initial_capital=initial_capital,
-        stop_loss=0.5,
-        take_profit=1.5,
+        stop_loss=0.6,
+        take_profit=1.8,
         max_daily_trades=10
     )
     

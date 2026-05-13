@@ -60,6 +60,8 @@ def run_backtest(
                 profit = capital * (price_change_pct / 100)
                 capital += profit
                 
+                exit_reason = 'STOP LOSS' if price_change_pct <= -stop_loss else 'TAKE PROFIT'
+                
                 trades.append({
                     'entry_idx': entry_idx,
                     'exit_idx': idx,
@@ -68,7 +70,8 @@ def run_backtest(
                     'direction': 'long' if position == 1 else 'short',
                     'profit_pct': price_change_pct,
                     'profit_dollars': profit,
-                    'capital_after': capital
+                    'capital_after': capital,
+                    'exit_reason': exit_reason
                 })
                 
                 position = None
