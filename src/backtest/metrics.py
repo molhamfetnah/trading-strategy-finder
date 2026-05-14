@@ -4,14 +4,14 @@ from typing import List, Dict
 
 
 def calculate_metrics(trades: List[Dict], initial_capital: float = 10000) -> Dict:
-    """Calculate all performance metrics.
+    """Calculate all performance metrics including risk metrics.
     
     Args:
         trades: List of trade dictionaries
         initial_capital: Starting capital
         
     Returns:
-        Dictionary with all metrics
+        Dictionary with all metrics including risk metrics
     """
     if not trades:
         return {
@@ -23,7 +23,10 @@ def calculate_metrics(trades: List[Dict], initial_capital: float = 10000) -> Dic
             'total_trades': 0,
             'avg_profit': 0,
             'avg_loss': 0,
-            'final_capital': initial_capital
+            'final_capital': initial_capital,
+            'expected_value': 0,
+            'max_consecutive_losses': 0,
+            'total_fees': 0
         }
     
     profits = [t['profit_dollars'] for t in trades]
@@ -42,6 +45,12 @@ def calculate_metrics(trades: List[Dict], initial_capital: float = 10000) -> Dic
     
     max_dd = calculate_max_drawdown_from_trades(trades, initial_capital)
     
+    expected_value = np.mean(profits)
+    
+    max_consecutive_losses = calculate_max_consecutive_losses(trades)
+    
+    total_fees = sum(t.get('fees_paid', 0) for t in trades)
+    
     return {
         'total_profit': total_profit,
         'profit_factor': profit_factor,
@@ -51,8 +60,29 @@ def calculate_metrics(trades: List[Dict], initial_capital: float = 10000) -> Dic
         'total_trades': len(trades),
         'avg_profit': np.mean(winning_trades) if winning_trades else 0,
         'avg_loss': np.mean(losing_trades) if losing_trades else 0,
-        'final_capital': trades[-1]['capital_after'] if trades else initial_capital
+        'final_capital': trades[-1]['capital_after'] if trades else initial_capital,
+        'expected_value': expected_value,
+        'max_consecutive_losses': max_consecutive_losses,
+        'total_fees': total_fees
     }
+
+
+def calculate_max_consecutive_losses(trades: List[Dict]) -> int:
+    """Calculate maximum consecutive losing trades."""
+    if not trades:
+        return 0
+    
+    max_streak = 0
+    current_streak = 0
+    
+    for trade in trades:
+        if trade['profit_dollars'] <= 0:
+            current_streak += 1
+            max_streak = max(max_streak, current_streak)
+        else:
+            current_streak = 0
+    
+    return max_streak
 
 
 def calculate_max_drawdown_from_trades(trades: List[Dict], initial_capital: float) -> float:

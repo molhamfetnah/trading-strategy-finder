@@ -8,9 +8,11 @@ def run_backtest(
     initial_capital: float = 10000,
     stop_loss: float = 1.0,
     take_profit: float = 1.5,
-    max_daily_trades: int = 10
+    max_daily_trades: int = 10,
+    fee_pct: float = 0.001,
+    slippage_pct: float = 0.0005
 ) -> Tuple[List[Dict], float]:
-    """Run backtest simulation.
+    """Run backtest simulation with fee and slippage modeling.
     
     Args:
         df: DataFrame with Close prices and signals
@@ -18,6 +20,8 @@ def run_backtest(
         stop_loss: Stop loss percentage (0.5 = 0.5%)
         take_profit: Take profit percentage (1.5 = 1.5%)
         max_daily_trades: Maximum trades per day
+        fee_pct: Commission fee per side (0.001 = 0.1%)
+        slippage_pct: Slippage on entry/exit (0.0005 = 0.05%)
         
     Returns:
         Tuple of (list of trades, final capital)
@@ -45,33 +49,47 @@ def run_backtest(
         
         if position is None and signal != 0 and daily_trade_count < max_daily_trades:
             position = signal
-            entry_price = row['Close']
+            entry_price = row['Close'] * (1 + slippage_pct if signal == 1 else 1 - slippage_pct)
             entry_idx = idx
             daily_trade_count += 1
             
+            fee = capital * fee_pct
+            capital -= fee
+            
         elif position is not None:
             current_price = row['Close']
-            price_change_pct = (current_price - entry_price) / entry_price * 100
             
-            if position == -1:
-                price_change_pct = -price_change_pct
+            if position == 1:
+                price_change_pct = (current_price - entry_price) / entry_price * 100
+            else:
+                price_change_pct = (entry_price - current_price) / entry_price * 100
             
             if price_change_pct <= -stop_loss or price_change_pct >= take_profit:
-                profit = capital * (price_change_pct / 100)
+                exit_price = current_price * (1 - slippage_pct if position == 1 else 1 + slippage_pct)
+                
+                if position == 1:
+                    profit_pct = (exit_price - entry_price) / entry_price * 100
+                else:
+                    profit_pct = (entry_price - exit_price) / entry_price * 100
+                
+                profit = capital * (profit_pct / 100)
+                fee = capital * fee_pct
+                profit -= fee
                 capital += profit
                 
-                exit_reason = 'STOP LOSS' if price_change_pct <= -stop_loss else 'TAKE PROFIT'
+                exit_reason = 'STOP LOSS' if profit_pct <= -stop_loss else 'TAKE PROFIT'
                 
                 trades.append({
                     'entry_idx': entry_idx,
                     'exit_idx': idx,
                     'entry_price': entry_price,
-                    'exit_price': current_price,
+                    'exit_price': exit_price,
                     'direction': 'long' if position == 1 else 'short',
-                    'profit_pct': price_change_pct,
+                    'profit_pct': profit_pct,
                     'profit_dollars': profit,
                     'capital_after': capital,
-                    'exit_reason': exit_reason
+                    'exit_reason': exit_reason,
+                    'fees_paid': fee * 2
                 })
                 
                 position = None

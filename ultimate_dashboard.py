@@ -24,14 +24,23 @@ def get_indicator_at_idx(df, idx):
     if idx < 0 or idx >= len(df):
         return {}
     row = df.iloc[idx]
+    
+    date_val = row.get('Date', '')
+    time_val = row.get('Time', '')
+    
+    if hasattr(date_val, 'strftime'):
+        date_str = date_val.strftime('%Y-%m-%d')
+    else:
+        date_str = str(date_val) if date_val else ''
+    
     return {
         'close': row.get('Close', 0),
         'rsi': row.get('rsi_5', row.get('rsi_7', 0)),
         'ema_5': row.get('ema_5', 0),
         'ema_15': row.get('ema_15', row.get('ema_20', 0)),
         'volume_spike': row.get('volume_spike', False),
-        'date': row.get('Date', ''),
-        'time': row.get('Time', '')
+        'date': date_str,
+        'time': str(time_val) if time_val else ''
     }
 
 
@@ -127,18 +136,23 @@ def generate_insights(trades, metrics):
     
     insights = {'key_findings': [], 'recommendations': []}
     
-    insights['key_findings'].append(f"Win rate of {metrics['win_rate']:.1f}% is acceptable with {abs(metrics['avg_profit']/metrics['avg_loss']):.1f}:1 reward:risk ratio")
-    insights['key_findings'].append(f"All winning trades hit take profit, all losing trades hit stop loss - clean execution")
+    insights['key_findings'].append(f"Win rate of {metrics['win_rate']:.1f}% with {abs(metrics['avg_profit']/abs(metrics['avg_loss'])):.1f}:1 reward:risk ratio")
+    insights['key_findings'].append(f"All winning trades hit take profit, all losing trades hit stop loss")
     insights['key_findings'].append(f"{len(trades)} trades over ~3 months = {len(trades)/3:.1f} trades per month")
-    insights['key_findings'].append(f"Max drawdown of {metrics['max_drawdown']:.2f}% is well within risk parameters")
+    insights['key_findings'].append(f"Max drawdown of {metrics['max_drawdown']:.2f}% is within risk parameters")
     
     if metrics['profit_factor'] >= 3.0:
-        insights['key_findings'].append(f"Profit factor of {metrics['profit_factor']:.2f} indicates highly effective system")
+        insights['key_findings'].append(f"Profit factor of {metrics['profit_factor']:.2f} indicates effective system")
+    
+    insights['key_findings'].append(f"Expected value per trade: ${metrics['expected_value']:.2f}")
+    insights['key_findings'].append(f"Max consecutive losses: {metrics['max_consecutive_losses']}")
+    insights['key_findings'].append(f"Total fees paid: ${metrics['total_fees']:.2f}")
     
     insights['recommendations'].append("Optimized RSI(5) provides faster signals than original RSI(7)")
     insights['recommendations'].append("EMA 5/15 crossover works well - avoid changing without re-optimization")
     insights['recommendations'].append("Consider testing lower stop loss (0.4%) for more trade frequency")
     insights['recommendations'].append("Volume spike threshold of 2.0x effectively filters false signals")
+    insights['recommendations'].append(f"With fees included, net profit is ${metrics['total_profit']:.2f} vs gross ${metrics['total_profit'] + metrics['total_fees']:.2f}")
     
     return insights
 
@@ -279,7 +293,7 @@ def generate_html(data):
     # Build HTML parts
     trades_html = ""
     for trade in trades:
-        direction_class = 'long' if trade['direction'] == 'LONG' else 'short'
+        direction_class = 'long' if trade['direction'] == 'long' else 'short'
         win_class = 'win' if trade['is_winner'] else 'loss'
         winner_class = 'winner' if trade['is_winner'] else 'loser'
         vol_spike = 'Yes' if trade['entry_indicators']['volume_spike'] else 'No'
@@ -354,7 +368,7 @@ def generate_html(data):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NASDAQ Trading Dashboard - Ultimate Analysis</title>
+    <title>NQ Futures Scalping Strategy - Trading Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
@@ -644,7 +658,7 @@ def generate_html(data):
     <!-- Header -->
     <header class="header">
         <div class="header-left">
-            <div class="symbol-name">NASDAQ Scalping Strategy</div>
+            <div class="symbol-name">NQ Futures Scalping Strategy (CME)</div>
             <div class="header-stats">
                 <div class="stat-item">
                     <div class="stat-value">Jul 1 - Sep 26, 2025</div>
@@ -690,7 +704,7 @@ def generate_html(data):
                     <div class="metrics-grid">
                         <div class="metric-box">
                             <div class="metric-value positive">${metrics['total_profit']:.2f}</div>
-                            <div class="metric-label">Total Profit</div>
+                            <div class="metric-label">Net Profit</div>
                         </div>
                         <div class="metric-box">
                             <div class="metric-value">${metrics['final_capital']:.2f}</div>
@@ -719,6 +733,22 @@ def generate_html(data):
                         <div class="metric-box">
                             <div class="metric-value negative">${metrics['avg_loss']:.2f}</div>
                             <div class="metric-label">Avg Loss</div>
+                        </div>
+                        <div class="metric-box">
+                            <div class="metric-value">${metrics['expected_value']:.2f}</div>
+                            <div class="metric-label">EV/Trade</div>
+                        </div>
+                        <div class="metric-box">
+                            <div class="metric-value">{metrics['max_consecutive_losses']}</div>
+                            <div class="metric-label">Max Losing Streak</div>
+                        </div>
+                        <div class="metric-box">
+                            <div class="metric-value">${metrics['total_fees']:.2f}</div>
+                            <div class="metric-label">Total Fees</div>
+                        </div>
+                        <div class="metric-box">
+                            <div class="metric-value">{len(trades)}</div>
+                            <div class="metric-label">Total Trades</div>
                         </div>
                     </div>
                 </div>
@@ -780,6 +810,27 @@ def generate_html(data):
                     <ul class="rule-list">
                         <li>Take Profit: +1.8% from entry</li>
                         <li>Stop Loss: -0.6% from entry</li>
+                    </ul>
+                </div>
+                
+                <div class="rule-item">
+                    <div class="rule-title">📊 Asset Class</div>
+                    <ul class="rule-list">
+                        <li><strong>Instrument:</strong> NQ - E-mini NASDAQ-100 Futures</li>
+                        <li><strong>Exchange:</strong> CME (Chicago Mercantile Exchange)</li>
+                        <li><strong>Contract Size:</strong> $2 per point</li>
+                        <li><strong>Price Range:</strong> $24,700 - $26,000 (Sep 2025)</li>
+                    </ul>
+                </div>
+                
+                <div class="rule-item">
+                    <div class="rule-title">🤖 ML Model</div>
+                    <ul class="rule-list">
+                        <li><strong>Algorithm:</strong> Random Forest Classifier</li>
+                        <li><strong>Estimators:</strong> 100 trees, max_depth=10</li>
+                        <li><strong>Features:</strong> price_change, price_change_5, volume_change, volume_ma_ratio, RSI</li>
+                        <li><strong>Target:</strong> Next candle direction (up/down)</li>
+                        <li><strong>Purpose:</strong> Filter signals and improve win rate</li>
                     </ul>
                 </div>
                 

@@ -14,10 +14,16 @@ def filter_2025(df: pd.DataFrame) -> pd.DataFrame:
     
     if 'Date' in df.columns:
         df['Date'] = pd.to_datetime(df['Date'])
-        date_col = 'Date'
+        if df['Date'].dt.hour.min() == 0 and df['Date'].dt.minute.min() == 0:
+            df['Date_only'] = df['Date'].dt.normalize()
+        else:
+            df['Date_only'] = df['Date'].dt.date
+        date_col = 'Date_only'
     elif 'timestamps' in df.columns:
-        df['Date'] = pd.to_datetime(df['timestamps'])
-        date_col = 'Date'
+        df['timestamps'] = pd.to_datetime(df['timestamps'])
+        df['Date_only'] = df['timestamps'].dt.normalize()
+        df['Time'] = df['timestamps'].dt.strftime('%H:%M:%S')
+        date_col = 'Date_only'
     else:
         raise ValueError("No Date or timestamps column found")
     
@@ -38,12 +44,15 @@ def split_train_test(df: pd.DataFrame, split_date: str) -> tuple[pd.DataFrame, p
     """
     df = df.copy()
     
-    if 'Date' in df.columns:
-        pass
-    elif 'timestamps' in df.columns:
-        df['Date'] = pd.to_datetime(df['timestamps'])
-    
     split = pd.Timestamp(split_date)
-    train = df[df['Date'] <= split]
-    test = df[df['Date'] > split]
+    
+    if 'Date' in df.columns:
+        df['Date'] = pd.to_datetime(df['Date'])
+        df['Date_only'] = df['Date'].dt.normalize() if df['Date'].dt.hour.min() == 0 else df['Date'].dt.date
+    elif 'timestamps' in df.columns:
+        df['timestamps'] = pd.to_datetime(df['timestamps'])
+        df['Date_only'] = df['timestamps'].dt.normalize()
+    
+    train = df[df['Date_only'] <= split]
+    test = df[df['Date_only'] > split]
     return train, test
