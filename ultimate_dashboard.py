@@ -148,11 +148,26 @@ def generate_insights(trades, metrics):
     winning = [t for t in trades if t['profit_dollars'] > 0]
     losing = [t for t in trades if t['profit_dollars'] <= 0]
     
+    gross_wins = sum(t['profit_dollars'] for t in winning)
+    gross_losses = abs(sum(t['profit_dollars'] for t in losing))
+    
+    rr_ratio = abs(metrics['avg_profit']/abs(metrics['avg_loss'])) if metrics['avg_loss'] != 0 else 0
+    
     insights = {'key_findings': [], 'recommendations': []}
     
-    insights['key_findings'].append(f"Win rate of {metrics['win_rate']:.1f}% with {abs(metrics['avg_profit']/abs(metrics['avg_loss'])):.1f}:1 reward:risk ratio")
-    insights['key_findings'].append(f"All winning trades hit take profit, all losing trades hit stop loss")
-    insights['key_findings'].append(f"{len(trades)} trades over ~3 months = {len(trades)/3:.1f} trades per month")
+    win_rate_str = f"{metrics['win_rate']:.1f}%" if metrics['total_trades'] > 0 else "0.0%"
+    insights['key_findings'].append(f"Win rate of {win_rate_str} with {rr_ratio:.1f}:1 reward:risk ratio")
+    
+    if len(winning) > 0:
+        insights['key_findings'].append(f"All winning trades hit take profit, all losing trades hit stop loss")
+    else:
+        insights['key_findings'].append(f"No winning trades detected - {len(losing)} losing trade(s)")
+    
+    if len(trades) > 0:
+        insights['key_findings'].append(f"{len(trades)} trades over test period = {len(trades)/3:.1f} trades per month")
+    else:
+        insights['key_findings'].append(f"No trades generated - algorithm did not detect valid setups")
+    
     insights['key_findings'].append(f"Max drawdown of {metrics['max_drawdown']:.2f}% is within risk parameters")
     
     if metrics['profit_factor'] >= 3.0:
@@ -166,7 +181,7 @@ def generate_insights(trades, metrics):
     insights['recommendations'].append("EMA 5/15 crossover works well - avoid changing without re-optimization")
     insights['recommendations'].append("Consider testing lower stop loss (0.4%) for more trade frequency")
     insights['recommendations'].append("Volume spike threshold of 2.0x effectively filters false signals")
-    insights['recommendations'].append(f"With fees included, net profit is ${metrics['total_profit']:.2f} vs gross wins $1,025.92")
+    insights['recommendations'].append(f"With fees included, net profit is ${metrics['total_profit']:.2f} vs gross wins ${gross_wins:.2f}")
     
     return insights
 
@@ -319,6 +334,27 @@ def generate_html(data):
     losing_trades = [t for t in trades if not t['is_winner']]
     final_capital = data['final_capital']
     total_return = data['total_return']
+    
+    # Conditional styling based on values
+    return_color = 'var(--accent-green)' if total_return >= 0 else 'var(--accent-red)'
+    return_prefix = '+' if total_return >= 0 else ''
+    
+    # Handle undefined metrics
+    profit_factor_display = f"{metrics['profit_factor']:.2f}" if metrics['total_trades'] > 0 else 'N/A'
+    sharpe_display = f"{metrics['sharpe_ratio']:.2f}" if metrics['total_trades'] >= 5 else 'N/A'
+    win_rate_display = f"{metrics['win_rate']:.1f}%" if metrics['total_trades'] > 0 else '0.0%'
+    
+    # Calculate gross wins for insights
+    gross_wins = sum(t['profit_dollars'] for t in trades if t['profit_dollars'] > 0)
+    avg_win_display = f"${metrics['avg_profit']:.2f}" if metrics['avg_profit'] > 0 else '$0.00'
+    avg_loss_display = f"${metrics['avg_loss']:.2f}" if metrics['avg_loss'] < 0 else '$0.00'
+    
+    # Calculate realized R/R
+    if metrics['avg_profit'] > 0 and abs(metrics['avg_loss']) > 0:
+        realized_rr = metrics['avg_profit'] / abs(metrics['avg_loss'])
+        rr_display = f"{realized_rr:.1f}:1"
+    else:
+        rr_display = 'N/A'
     
     # Build HTML parts
     trades_html = ""
@@ -703,7 +739,7 @@ def generate_html(data):
                     <div class="stat-label">Final Capital</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value" style="color: var(--accent-green);">+{total_return:.2f}%</div>
+                    <div class="stat-value" style="color: {return_color};">{return_prefix}{total_return:.2f}%</div>
                     <div class="stat-label">Total Return</div>
                 </div>
                 <div class="stat-item">
@@ -741,15 +777,15 @@ def generate_html(data):
                             <div class="metric-label">Final Capital</div>
                         </div>
                         <div class="metric-box">
-                            <div class="metric-value">{metrics['profit_factor']:.2f}</div>
+                            <div class="metric-value">{profit_factor_display}</div>
                             <div class="metric-label">Profit Factor</div>
                         </div>
                         <div class="metric-box">
-                            <div class="metric-value">{metrics['win_rate']:.1f}%</div>
+                            <div class="metric-value">{win_rate_display}</div>
                             <div class="metric-label">Win Rate</div>
                         </div>
                         <div class="metric-box">
-                            <div class="metric-value">{metrics['sharpe_ratio']:.2f}</div>
+                            <div class="metric-value">{sharpe_display}</div>
                             <div class="metric-label">Sharpe Ratio</div>
                         </div>
                         <div class="metric-box">
@@ -757,11 +793,11 @@ def generate_html(data):
                             <div class="metric-label">Max Drawdown</div>
                         </div>
                         <div class="metric-box">
-                            <div class="metric-value">${metrics['avg_profit']:.2f}</div>
+                            <div class="metric-value">{avg_win_display}</div>
                             <div class="metric-label">Avg Win</div>
                         </div>
                         <div class="metric-box">
-                            <div class="metric-value negative">${metrics['avg_loss']:.2f}</div>
+                            <div class="metric-value negative">{avg_loss_display}</div>
                             <div class="metric-label">Avg Loss</div>
                         </div>
                         <div class="metric-box">
@@ -840,7 +876,7 @@ def generate_html(data):
                     <ul class="rule-list">
                         <li>Take Profit: +1.8% from entry (3:1 target)</li>
                         <li>Stop Loss: -0.6% from entry</li>
-                        <li>Realized R/R: 2.2:1 (avg win 2.18%, avg loss 0.99%)</li>
+                        <li>Realized R/R: {rr_display} (from actual trades)</li>
                     </ul>
                 </div>
                 
