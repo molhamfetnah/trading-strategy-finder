@@ -33,14 +33,19 @@ def run_scalping_strategy(train_df, test_df, initial_capital=10000):
     train_data = calculate_rsi(train_df.copy(), period=5)
     train_data = calculate_ema(train_data, periods=[5, 15])
     train_data = calculate_volume_spike(train_data, threshold=2.0)
-    train_data = generate_scalping_signals(train_data)
+    train_data = generate_scalping_signals(train_data, rsi_period=5)
     train_data = add_ml_features(train_data)
     ml_data = train_ml_filter(train_data)
     
-    test_data = calculate_rsi(test_df.copy(), period=5)
+    # CRITICAL FIX: Reverse test data so it's ascending (oldest first)
+    # Data was loaded in descending order causing exit before entry timestamps
+    test_data = test_df.copy().reset_index(drop=True)[::-1].reset_index(drop=True)
+    print(f"  Data reversed for ascending order. First: {test_data.iloc[0]['Date']} {test_data.iloc[0]['Time']}")
+    
+    test_data = calculate_rsi(test_data, period=5)
     test_data = calculate_ema(test_data, periods=[5, 15])
     test_data = calculate_volume_spike(test_data, threshold=2.0)
-    test_data = generate_scalping_signals(test_data)
+    test_data = generate_scalping_signals(test_data, rsi_period=5)
     test_data = add_ml_features(test_data)
     test_data = apply_ml_filter(test_data, ml_data)
     

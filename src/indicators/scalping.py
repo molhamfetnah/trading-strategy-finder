@@ -9,7 +9,7 @@ def calculate_rsi(df: pd.DataFrame, period: int = 7) -> pd.DataFrame:
     gain = delta.where(delta > 0, 0).rolling(window=period).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
     rs = gain / loss
-    df['rsi_7'] = 100 - (100 / (1 + rs))
+    df[f'rsi_{period}'] = 100 - (100 / (1 + rs))
     return df
 
 

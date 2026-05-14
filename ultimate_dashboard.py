@@ -232,15 +232,22 @@ def create_ultimate_dashboard():
     train_df = calculate_rsi(train_df, period=5)
     train_df = calculate_ema(train_df, periods=[5, 15])
     train_df = calculate_volume_spike(train_df, threshold=2.0)
-    train_df = generate_scalping_signals(train_df)
+    train_df = generate_scalping_signals(train_df, rsi_period=5)
     train_df = add_ml_features(train_df)
     ml_data = train_ml_filter(train_df)
     
-    test_df = test_1min.copy().reset_index(drop=True)
+    # CRITICAL FIX: Reverse data so it's ascending (oldest first)
+    # The data was loaded in descending order (newest first) which caused
+    # exit timestamps to appear BEFORE entry timestamps
+    test_df = test_1min.copy().reset_index(drop=True)[::-1].reset_index(drop=True)
+    
+    print(f"Data reversed for ascending order. First row: {test_df.iloc[0]['Date']} {test_df.iloc[0]['Time']}")
+    print(f"Last row: {test_df.iloc[-1]['Date']} {test_df.iloc[-1]['Time']}")
+    
     test_df = calculate_rsi(test_df, period=5)
     test_df = calculate_ema(test_df, periods=[5, 15])
     test_df = calculate_volume_spike(test_df, threshold=2.0)
-    test_df = generate_scalping_signals(test_df)
+    test_df = generate_scalping_signals(test_df, rsi_period=5)
     test_df = add_ml_features(test_df)
     test_df = apply_ml_filter(test_df, ml_data)
     

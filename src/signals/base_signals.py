@@ -2,20 +2,22 @@ import pandas as pd
 import numpy as np
 
 
-def generate_scalping_signals(df: pd.DataFrame) -> pd.DataFrame:
+def generate_scalping_signals(df: pd.DataFrame, rsi_period: int = 5) -> pd.DataFrame:
     """Generate scalping signals based on RSI, EMA, and volume."""
     df = df.copy()
     df['signal'] = 0
     
+    rsi_col = f'rsi_{rsi_period}'
+    
     long_condition = (
         (df['Close'] > df['ema_5']) &
-        (df['rsi_7'] < 30) &
+        (df[rsi_col] < 30) &
         (df['volume_spike'] == True)
     )
     
     short_condition = (
         (df['Close'] < df['ema_5']) &
-        (df['rsi_7'] > 70) &
+        (df[rsi_col] > 70) &
         (df['volume_spike'] == True)
     )
     
