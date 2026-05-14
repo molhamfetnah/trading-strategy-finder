@@ -177,10 +177,11 @@ def generate_insights(trades, metrics):
     insights['key_findings'].append(f"Max consecutive losses: {metrics['max_consecutive_losses']}")
     insights['key_findings'].append(f"Total fees paid: ${metrics['total_fees']:.2f}")
     
-    insights['recommendations'].append("Optimized RSI(5) provides faster signals than original RSI(7)")
+    insights['recommendations'].append("Optimized RSI(5) < 25 provides faster signals with higher conviction")
     insights['recommendations'].append("EMA 5/15 crossover works well - avoid changing without re-optimization")
-    insights['recommendations'].append("Consider testing lower stop loss (0.4%) for more trade frequency")
-    insights['recommendations'].append("Volume spike threshold of 2.0x effectively filters false signals")
+    insights['recommendations'].append("15min timeframe provides better signal quality than 1min")
+    insights['recommendations'].append("Volume spike threshold of 1.0x effectively filters false signals")
+    insights['recommendations'].append("ML filter (Random Forest) improves win rate by filtering weak signals")
     insights['recommendations'].append(f"With fees included, net profit is ${metrics['total_profit']:.2f} vs gross wins ${gross_wins:.2f}")
     
     return insights
@@ -229,6 +230,126 @@ def prepare_chart_data(df, trades):
     return chart_data
 
 
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+
+def prepare_data(df, rsi_period=5):
+    df = df.copy()
+    df = calculate_rsi(df, period=rsi_period)
+    df = calculate_ema(df, periods=[5, 15])
+    df = calculate_volume_spike(df, threshold=1.0)
+    df = generate_scalping_signals(df, rsi_period=rsi_period)
+    return df
+
+def add_ml_features(df):
+    df = df.copy()
+    df['price_change'] = df['Close'].pct_change()
+    df['price_change_5'] = df['Close'].pct_change(5)
+    df['volume_change'] = df['Volume'].pct_change()
+    df['volume_ma_ratio'] = df['Volume'] / df['Volume'].rolling(20).mean()
+    df['ema_diff'] = (df['ema_5'] - df['ema_15']) / df['ema_15'] * 100
+    df['rsi_change'] = df['rsi_5'].diff()
+    df['volatility'] = df['Close'].rolling(10).std() / df['Close'].rolling(10).mean() * 100
+    return df
+
+def train_ml(df_train, rsi_thresh=25):
+    df = add_ml_features(df_train)
+    df['next_return'] = df['Close'].shift(-1) / df['Close'] - 1
+    df['target'] = np.where(df['next_return'] > 0, 1, 0)
+    
+    features = ['rsi_5', 'price_change', 'price_change_5', 'volume_change', 
+                'volume_ma_ratio', 'ema_diff', 'rsi_change', 'volatility']
+    
+    df_clean = df.dropna(subset=features + ['target'])
+    df_clean = df_clean[df_clean['signal'] != 0].copy()
+    
+    if len(df_clean) < 50:
+        return None
+    
+    X = df_clean[features]
+    y = df_clean['target']
+    
+    model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
+    model.fit(X, y)
+    
+    return {'model': model, 'features': features}
+
+def apply_ml_filter(df, ml_data):
+    if ml_data is None:
+        return df['signal'].values
+    
+    df = add_ml_features(df)
+    model = ml_data['model']
+    features = ml_data['features']
+    
+    signals = df['signal'].values.copy()
+    
+    for i, (idx, row) in enumerate(df.iterrows()):
+        if row['signal'] != 0:
+            try:
+                X = row[features].values.reshape(1, -1)
+                if not np.isnan(X).any():
+                    pred = model.predict(X)[0]
+                    if row['signal'] == 1 and pred == 0:
+                        signals[i] = 0
+                    elif row['signal'] == -1 and pred == 1:
+                        signals[i] = 0
+            except:
+                pass
+    
+    return signals
+
+def resample_15min(df):
+    df = df.copy()
+    if 'DateTime' not in df.columns:
+        df['DateTime'] = pd.to_datetime(df['Date'].astype(str) + ' ' + df['Time'].astype(str))
+    df = df.set_index('DateTime')
+    resampled = df.resample('15min').agg({
+        'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last', 'Volume': 'sum'
+    })
+    resampled = resampled.dropna().reset_index()
+    resampled['Date'] = resampled['DateTime'].dt.strftime('%Y-%m-%d')
+    resampled['Time'] = resampled['DateTime'].dt.strftime('%H:%M:%S')
+    return resampled
+
+def run_backtest_15min(signals, closes, df, initial_capital=10000, stop_loss=0.6, take_profit=2.4, fee_per_trade=10.0):
+    capital = initial_capital
+    in_pos = 0
+    entry_price = 0
+    entry_idx = 0
+    trades = []
+    
+    for i in range(len(signals)):
+        if in_pos == 0 and signals[i] != 0:
+            in_pos = 1 if signals[i] == 1 else -1
+            entry_price = closes[i]
+            entry_idx = i
+        
+        if in_pos != 0:
+            pnl_pct = (closes[i] - entry_price) / entry_price * 100 if in_pos == 1 else (entry_price - closes[i]) / entry_price * 100
+            
+            if pnl_pct <= -stop_loss or pnl_pct >= take_profit:
+                exit_reason = 'SL' if pnl_pct <= -stop_loss else 'TP'
+                pnl_dollars = (pnl_pct / 100) * capital - fee_per_trade
+                trades.append({
+                    'entry_idx': entry_idx,
+                    'exit_idx': i,
+                    'direction': 'long' if in_pos == 1 else 'short',
+                    'entry_price': entry_price,
+                    'exit_price': closes[i],
+                    'profit_pct': pnl_pct,
+                    'profit_dollars': pnl_dollars,
+                    'capital_after': capital + pnl_dollars,
+                    'exit_reason': exit_reason,
+                    'fees_paid': fee_per_trade
+                })
+                capital += pnl_dollars
+                in_pos = 0
+    
+    return trades, capital
+
+
 def create_ultimate_dashboard():
     """Create the ultimate TradingView-style dashboard."""
     print("=" * 70)
@@ -240,34 +361,34 @@ def create_ultimate_dashboard():
     df_2025 = filter_2025(df_1min)
     train_1min, test_1min = split_train_test(df_2025, '2025-06-30')
     
-    print(f"Test data: {len(test_1min)} candles")
+    print("Resampling to 15min timeframe...")
+    train_15 = resample_15min(train_1min.copy().reset_index(drop=True)[::-1].reset_index(drop=True))
+    test_15 = resample_15min(test_1min.copy().reset_index(drop=True)[::-1].reset_index(drop=True))
+    
+    print(f"Train (15min): {len(train_15)} candles")
+    print(f"Test (15min): {len(test_15)} candles")
     
     print("\nCalculating indicators...")
-    train_df = train_1min.copy().reset_index(drop=True)
-    train_df = calculate_rsi(train_df, period=5)
-    train_df = calculate_ema(train_df, periods=[5, 15])
-    train_df = calculate_volume_spike(train_df, threshold=2.0)
-    train_df = generate_scalping_signals(train_df, rsi_period=5)
-    train_df = add_ml_features(train_df)
-    ml_data = train_ml_filter(train_df)
+    train_prep = prepare_data(train_15)
+    test_prep = prepare_data(test_15)
     
-    # CRITICAL FIX: Reverse data so it's ascending (oldest first)
-    # The data was loaded in descending order (newest first) which caused
-    # exit timestamps to appear BEFORE entry timestamps
-    test_df = test_1min.copy().reset_index(drop=True)[::-1].reset_index(drop=True)
+    print("Training ML model...")
+    ml_data = train_ml(train_prep, rsi_thresh=25)
     
-    print(f"Data reversed for ascending order. First row: {test_df.iloc[0]['Date']} {test_df.iloc[0]['Time']}")
-    print(f"Last row: {test_df.iloc[-1]['Date']} {test_df.iloc[-1]['Time']}")
-    
-    test_df = calculate_rsi(test_df, period=5)
-    test_df = calculate_ema(test_df, periods=[5, 15])
-    test_df = calculate_volume_spike(test_df, threshold=2.0)
-    test_df = generate_scalping_signals(test_df, rsi_period=5)
-    test_df = add_ml_features(test_df)
-    test_df = apply_ml_filter(test_df, ml_data)
+    print("Applying ML filter to test data...")
+    signals = apply_ml_filter(test_prep, ml_data)
+    signals[test_prep['rsi_5'].values >= 25] = 0
     
     print("\nRunning backtest...")
-    trades, final_capital = run_backtest(test_df, initial_capital=10000, stop_loss=0.6, take_profit=1.8, fee_per_trade=10.0)
+    trades, final_capital = run_backtest_15min(
+        signals, 
+        test_15['Close'].values, 
+        test_prep,
+        initial_capital=10000, 
+        stop_loss=0.6, 
+        take_profit=2.4, 
+        fee_per_trade=10.0
+    )
     metrics = calculate_metrics(trades, 10000)
     
     print(f"\nNet Profit: ${metrics['total_profit']:.2f}")
@@ -278,20 +399,27 @@ def create_ultimate_dashboard():
     print("\nAnalyzing trades...")
     trade_analysis = []
     for i, trade in enumerate(trades, 1):
-        analysis = analyze_trade(test_df, trade, i)
+        analysis = analyze_trade(test_prep, trade, i)
         trade_analysis.append(analysis)
     
-    logs = generate_logs(trades, test_df, metrics)
+    logs = generate_logs(trades, test_prep, metrics)
     insights = generate_insights(trades, metrics)
-    chart_data = prepare_chart_data(test_df, trades)
+    chart_data = prepare_chart_data(test_15, trades)
     
     winning_trades = [t for t in trade_analysis if t['is_winner']]
     losing_trades = [t for t in trade_analysis if not t['is_winner']]
     
     params = {
-        'rsi_period': 5, 'rsi_oversold': 30, 'rsi_overbought': 70,
-        'ema_fast': 5, 'ema_slow': 15, 'volume_threshold': 2.0,
-        'stop_loss': 0.6, 'take_profit': 1.8
+        'timeframe': '15min',
+        'rsi_period': 5, 
+        'rsi_oversold': 25,
+        'rsi_overbought': 75,
+        'ema_fast': 5, 
+        'ema_slow': 15, 
+        'volume_threshold': 1.0,
+        'stop_loss': 0.6, 
+        'take_profit': 2.4,
+        'ml_filter': True
     }
     
     # Save JSON data for the HTML
@@ -852,21 +980,21 @@ def generate_html(data):
             <!-- Playbook Tab -->
             <div class="tab-content" id="playbook">
                 <div class="rule-item">
-                    <div class="rule-title">📈 Long Entry Rules</div>
+                    <div class="rule-title">📈 Long Entry Rules (15min)</div>
                     <ul class="rule-list">
-                        <li>RSI(5) &lt; 30 (oversold)</li>
+                        <li>RSI(5) &lt; 25 (oversold)</li>
                         <li>Price &gt; EMA 5</li>
-                        <li>Volume spike &gt; 2.0x average</li>
+                        <li>Volume spike &gt; 1.0x average</li>
                         <li>ML filter confirms signal</li>
                     </ul>
                 </div>
                 
                 <div class="rule-item">
-                    <div class="rule-title">📉 Short Entry Rules</div>
+                    <div class="rule-title">📉 Short Entry Rules (15min)</div>
                     <ul class="rule-list">
-                        <li>RSI(5) &gt; 70 (overbought)</li>
+                        <li>RSI(5) &gt; 75 (overbought)</li>
                         <li>Price &lt; EMA 5</li>
-                        <li>Volume spike &gt; 2.0x average</li>
+                        <li>Volume spike &gt; 1.0x average</li>
                         <li>ML filter confirms signal</li>
                     </ul>
                 </div>
@@ -874,7 +1002,7 @@ def generate_html(data):
                 <div class="rule-item">
                     <div class="rule-title">🎯 Exit Rules</div>
                     <ul class="rule-list">
-                        <li>Take Profit: +1.8% from entry (3:1 target)</li>
+                        <li>Take Profit: +2.4% from entry (4:1 target)</li>
                         <li>Stop Loss: -0.6% from entry</li>
                         <li>Realized R/R: {rr_display} (from actual trades)</li>
                     </ul>

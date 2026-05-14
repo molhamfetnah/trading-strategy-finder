@@ -23,11 +23,26 @@ def calculate_ema(df: pd.DataFrame, periods: list = None) -> pd.DataFrame:
     return df
 
 
-def calculate_volume_spike(df: pd.DataFrame, threshold: float = 2.0) -> pd.DataFrame:
-    """Calculate volume spike detection."""
+def calculate_volume_spike(df: pd.DataFrame, threshold: float = 2.0, use_percentile: bool = False, percentile: float = 95.0) -> pd.DataFrame:
+    """Calculate volume spike detection.
+    
+    Args:
+        df: DataFrame with Volume column
+        threshold: Multiplier of rolling average (default 2.0)
+        use_percentile: If True, use percentile-based threshold instead of fixed
+        percentile: Percentile for adaptive threshold (default 95th)
+    """
     df = df.copy()
     df['volume_ma'] = df['Volume'].rolling(20).mean()
-    df['volume_spike'] = df['Volume'] > (df['volume_ma'] * threshold)
+    
+    if use_percentile:
+        threshold_value = df['Volume'].quantile(percentile / 100)
+        df['volume_spike'] = df['Volume'] > threshold_value
+        df['volume_threshold'] = threshold_value
+    else:
+        df['volume_spike'] = df['Volume'] > (df['volume_ma'] * threshold)
+        df['volume_threshold'] = df['volume_ma'] * threshold
+    
     return df
 
 
