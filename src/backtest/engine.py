@@ -9,7 +9,7 @@ def run_backtest(
     stop_loss: float = 1.0,
     take_profit: float = 1.5,
     max_daily_trades: int = 10,
-    fee_pct: float = 0.001,
+    fee_per_trade: float = 1.0,
     slippage_pct: float = 0.0005
 ) -> Tuple[List[Dict], float]:
     """Run backtest simulation with fee and slippage modeling.
@@ -20,7 +20,7 @@ def run_backtest(
         stop_loss: Stop loss percentage (0.5 = 0.5%)
         take_profit: Take profit percentage (1.5 = 1.5%)
         max_daily_trades: Maximum trades per day
-        fee_pct: Commission fee per side (0.001 = 0.1%)
+        fee_per_trade: Fixed commission fee per trade (both sides)
         slippage_pct: Slippage on entry/exit (0.0005 = 0.05%)
         
     Returns:
@@ -53,9 +53,6 @@ def run_backtest(
             entry_idx = idx
             daily_trade_count += 1
             
-            fee = capital * fee_pct
-            capital -= fee
-            
         elif position is not None:
             current_price = row['Close']
             
@@ -73,8 +70,7 @@ def run_backtest(
                     profit_pct = (entry_price - exit_price) / entry_price * 100
                 
                 profit = capital * (profit_pct / 100)
-                fee = capital * fee_pct
-                profit -= fee
+                profit -= fee_per_trade
                 capital += profit
                 
                 exit_reason = 'STOP LOSS' if profit_pct <= -stop_loss else 'TAKE PROFIT'
@@ -89,7 +85,7 @@ def run_backtest(
                     'profit_dollars': profit,
                     'capital_after': capital,
                     'exit_reason': exit_reason,
-                    'fees_paid': fee * 2
+                    'fees_paid': fee_per_trade
                 })
                 
                 position = None

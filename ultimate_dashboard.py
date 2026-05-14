@@ -57,8 +57,8 @@ def analyze_trade(df, trade, trade_num):
     analysis = {
         'trade_num': trade_num,
         'direction': trade['direction'],
-        'entry_time': f"{entry_indicators.get('date', '')} {entry_indicators.get('time', '')}",
-        'exit_time': f"{exit_indicators.get('date', '')} {exit_indicators.get('time', '')}",
+        'entry_time': get_timestamp_str(df, entry_idx),
+        'exit_time': get_timestamp_str(df, exit_idx),
         'entry_price': trade['entry_price'],
         'exit_price': trade['exit_price'],
         'profit_pct': trade['profit_pct'],
@@ -99,13 +99,27 @@ def analyze_trade(df, trade, trade_num):
     return analysis
 
 
+def get_timestamp_str(df, idx):
+    """Get formatted timestamp string from DataFrame row."""
+    row = df.iloc[idx]
+    date_val = row.get('Date', '')
+    time_val = row.get('Time', '')
+    
+    if hasattr(date_val, 'strftime'):
+        date_str = date_val.strftime('%Y-%m-%d')
+    else:
+        date_str = str(date_val) if date_val else ''
+    
+    return f"{date_str} {time_val}" if time_val else date_str
+
+
 def generate_logs(trades, df, metrics):
     """Generate event logs from trades."""
     logs = []
     capital = 10000
     for i, trade in enumerate(trades, 1):
-        entry_time = f"{df.iloc[trade['entry_idx']].get('Date', '')} {df.iloc[trade['entry_idx']].get('Time', '')}"
-        exit_time = f"{df.iloc[trade['exit_idx']].get('Date', '')} {df.iloc[trade['exit_idx']].get('Time', '')}"
+        entry_time = get_timestamp_str(df, trade['entry_idx'])
+        exit_time = get_timestamp_str(df, trade['exit_idx'])
         
         logs.append({
             'timestamp': entry_time,
@@ -223,10 +237,11 @@ def create_ultimate_dashboard():
     test_df = apply_ml_filter(test_df, ml_data)
     
     print("\nRunning backtest...")
-    trades, final_capital = run_backtest(test_df, initial_capital=10000, stop_loss=0.6, take_profit=1.8)
+    trades, final_capital = run_backtest(test_df, initial_capital=10000, stop_loss=0.6, take_profit=1.8, fee_per_trade=10.0)
     metrics = calculate_metrics(trades, 10000)
     
-    print(f"\nProfit: ${metrics['total_profit']:.2f}")
+    print(f"\nNet Profit: ${metrics['total_profit']:.2f}")
+    print(f"Total Fees: ${metrics['total_fees']:.2f}")
     print(f"Win Rate: {metrics['win_rate']:.1f}%")
     print(f"Profit Factor: {metrics['profit_factor']:.2f}")
     
@@ -808,8 +823,9 @@ def generate_html(data):
                 <div class="rule-item">
                     <div class="rule-title">🎯 Exit Rules</div>
                     <ul class="rule-list">
-                        <li>Take Profit: +1.8% from entry</li>
+                        <li>Take Profit: +1.8% from entry (3:1 target)</li>
                         <li>Stop Loss: -0.6% from entry</li>
+                        <li>Realized R/R: 2.2:1 (avg win 2.18%, avg loss 0.99%)</li>
                     </ul>
                 </div>
                 

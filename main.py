@@ -49,12 +49,14 @@ def run_scalping_strategy(train_df, test_df, initial_capital=10000):
         initial_capital=initial_capital,
         stop_loss=0.6,
         take_profit=1.8,
-        max_daily_trades=10
+        max_daily_trades=10,
+        fee_per_trade=10.0
     )
     
     metrics = calculate_metrics(trades, initial_capital)
     
-    print(f"  Total Profit: ${metrics['total_profit']:.2f}")
+    print(f"  Net Profit: ${metrics['total_profit']:.2f}")
+    print(f"  Total Fees: ${metrics['total_fees']:.2f}")
     print(f"  Profit Factor: {metrics['profit_factor']:.2f}")
     print(f"  Win Rate: {metrics['win_rate']:.1f}%")
     print(f"  Sharpe Ratio: {metrics['sharpe_ratio']:.2f}")
