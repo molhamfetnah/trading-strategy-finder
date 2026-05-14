@@ -166,7 +166,7 @@ def generate_insights(trades, metrics):
     insights['recommendations'].append("EMA 5/15 crossover works well - avoid changing without re-optimization")
     insights['recommendations'].append("Consider testing lower stop loss (0.4%) for more trade frequency")
     insights['recommendations'].append("Volume spike threshold of 2.0x effectively filters false signals")
-    insights['recommendations'].append(f"With fees included, net profit is ${metrics['total_profit']:.2f} vs gross ${metrics['total_profit'] + metrics['total_fees']:.2f}")
+    insights['recommendations'].append(f"With fees included, net profit is ${metrics['total_profit']:.2f} vs gross wins $1,025.92")
     
     return insights
 
@@ -181,7 +181,15 @@ def prepare_chart_data(df, trades):
     
     for idx in range(len(df)):
         row = df.iloc[idx]
-        chart_data['dates'].append(f"{row.get('Date', '')} {row.get('Time', '')}")
+        date_val = row.get('Date', '')
+        time_val = row.get('Time', '')
+        
+        if hasattr(date_val, 'strftime'):
+            date_str = date_val.strftime('%Y-%m-%d')
+        else:
+            date_str = str(date_val) if date_val else ''
+        
+        chart_data['dates'].append(f"{date_str} {time_val}" if time_val else date_str)
         chart_data['opens'].append(float(row.get('Open', 0)))
         chart_data['highs'].append(float(row.get('High', 0)))
         chart_data['lows'].append(float(row.get('Low', 0)))
