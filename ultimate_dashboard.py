@@ -63,6 +63,8 @@ def analyze_trade(df, trade, trade_num):
         'exit_price': trade['exit_price'],
         'profit_pct': trade['profit_pct'],
         'profit_dollars': trade['profit_dollars'],
+        'capital_after': trade.get('capital_after', 0),
+        'fees_paid': trade.get('fees_paid', 10),
         'exit_reason': trade['exit_reason'],
         'is_winner': is_winner,
         'entry_indicators': {
@@ -151,6 +153,8 @@ def generate_insights(trades, metrics):
     gross_wins = sum(t['profit_dollars'] for t in winning)
     gross_losses = abs(sum(t['profit_dollars'] for t in losing))
     
+    total_fees = sum(t.get('fees_paid', 10) for t in trades)
+    
     rr_ratio = abs(metrics['avg_profit']/abs(metrics['avg_loss'])) if metrics['avg_loss'] != 0 else 0
     
     insights = {'key_findings': [], 'recommendations': []}
@@ -175,14 +179,14 @@ def generate_insights(trades, metrics):
     
     insights['key_findings'].append(f"Expected value per trade: ${metrics['expected_value']:.2f}")
     insights['key_findings'].append(f"Max consecutive losses: {metrics['max_consecutive_losses']}")
-    insights['key_findings'].append(f"Total fees paid: ${metrics['total_fees']:.2f}")
+    insights['key_findings'].append(f"Total fees paid: ${total_fees:.2f}")
     
     insights['recommendations'].append("Optimized RSI(5) < 25 provides faster signals with higher conviction")
     insights['recommendations'].append("EMA 5/15 crossover works well - avoid changing without re-optimization")
     insights['recommendations'].append("15min timeframe provides better signal quality than 1min")
     insights['recommendations'].append("Volume spike threshold of 1.0x effectively filters false signals")
     insights['recommendations'].append("ML filter (Random Forest) improves win rate by filtering weak signals")
-    insights['recommendations'].append(f"With fees included, net profit is ${metrics['total_profit']:.2f} vs gross wins ${gross_wins:.2f}")
+    insights['recommendations'].append(f"Net profit after fees: ${metrics['net_profit']:.2f} (Gross profit: ${gross_wins:.2f}, Gross loss: ${gross_losses:.2f})")
     
     return insights
 
@@ -391,7 +395,8 @@ def create_ultimate_dashboard():
     )
     metrics = calculate_metrics(trades, 10000)
     
-    print(f"\nNet Profit: ${metrics['total_profit']:.2f}")
+    print(f"\nGross Profit: ${metrics['gross_profit']:.2f}")
+    print(f"Net Profit: ${metrics['net_profit']:.2f}")
     print(f"Total Fees: ${metrics['total_fees']:.2f}")
     print(f"Win Rate: {metrics['win_rate']:.1f}%")
     print(f"Profit Factor: {metrics['profit_factor']:.2f}")
@@ -897,12 +902,16 @@ def generate_html(data):
                 <div class="panel-content">
                     <div class="metrics-grid">
                         <div class="metric-box">
-                            <div class="metric-value positive">${metrics['total_profit']:.2f}</div>
+                            <div class="metric-value positive">${metrics['net_profit']:.2f}</div>
                             <div class="metric-label">Net Profit</div>
                         </div>
                         <div class="metric-box">
                             <div class="metric-value">${metrics['final_capital']:.2f}</div>
                             <div class="metric-label">Final Capital</div>
+                        </div>
+                        <div class="metric-box">
+                            <div class="metric-value">${metrics['total_fees']:.2f}</div>
+                            <div class="metric-label">Total Fees</div>
                         </div>
                         <div class="metric-box">
                             <div class="metric-value">{profit_factor_display}</div>

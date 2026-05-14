@@ -15,7 +15,9 @@ def calculate_metrics(trades: List[Dict], initial_capital: float = 10000) -> Dic
     """
     if not trades:
         return {
-            'total_profit': 0,
+            'gross_profit': 0,
+            'total_fees': 0,
+            'net_profit': 0,
             'profit_factor': 0,
             'win_rate': 0,
             'sharpe_ratio': 0,
@@ -25,19 +27,21 @@ def calculate_metrics(trades: List[Dict], initial_capital: float = 10000) -> Dic
             'avg_loss': 0,
             'final_capital': initial_capital,
             'expected_value': 0,
-            'max_consecutive_losses': 0,
-            'total_fees': 0
+            'max_consecutive_losses': 0
         }
     
     profits = [t['profit_dollars'] for t in trades]
     winning_trades = [p for p in profits if p > 0]
     losing_trades = [p for p in profits if p <= 0]
     
-    total_profit = sum(profits)
-    gross_profit = sum(winning_trades) if winning_trades else 0
+    total_fees = sum(t.get('fees_paid', 10) for t in trades)
+    gross_profit = sum(profits) + total_fees
+    net_profit = sum(profits)
+    
+    gross_wins = sum(winning_trades) if winning_trades else 0
     gross_loss = abs(sum(losing_trades)) if losing_trades else 1
     
-    profit_factor = gross_profit / gross_loss if gross_loss > 0 else 0
+    profit_factor = gross_wins / gross_loss if gross_loss > 0 else 0
     win_rate = len(winning_trades) / len(trades) * 100 if trades else 0
     
     returns = [p / initial_capital * 100 for p in profits]
@@ -49,10 +53,10 @@ def calculate_metrics(trades: List[Dict], initial_capital: float = 10000) -> Dic
     
     max_consecutive_losses = calculate_max_consecutive_losses(trades)
     
-    total_fees = sum(t.get('fees_paid', 0) for t in trades)
-    
     return {
-        'total_profit': total_profit,
+        'gross_profit': gross_profit,
+        'total_fees': total_fees,
+        'net_profit': net_profit,
         'profit_factor': profit_factor,
         'win_rate': win_rate,
         'sharpe_ratio': sharpe_ratio,
@@ -62,8 +66,7 @@ def calculate_metrics(trades: List[Dict], initial_capital: float = 10000) -> Dic
         'avg_loss': np.mean(losing_trades) if losing_trades else 0,
         'final_capital': trades[-1]['capital_after'] if trades else initial_capital,
         'expected_value': expected_value,
-        'max_consecutive_losses': max_consecutive_losses,
-        'total_fees': total_fees
+        'max_consecutive_losses': max_consecutive_losses
     }
 
 
