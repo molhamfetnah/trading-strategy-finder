@@ -209,6 +209,11 @@ def prepare_chart_data(df, trades):
         else:
             date_str = str(date_val) if date_val else ''
         
+        # Handle RSI - replace NaN/0 with 50 (neutral) for display
+        rsi_val = float(row.get('rsi_5', row.get('rsi_7', 50)))
+        if pd.isna(rsi_val) or rsi_val == 0:
+            rsi_val = 50.0  # Neutral RSI for unavailable/zero values
+        
         chart_data['dates'].append(f"{date_str} {time_val}" if time_val else date_str)
         chart_data['opens'].append(float(row.get('Open', 0)))
         chart_data['highs'].append(float(row.get('High', 0)))
@@ -217,7 +222,7 @@ def prepare_chart_data(df, trades):
         chart_data['volumes'].append(int(row.get('Volume', 0)))
         chart_data['ema_5'].append(float(row.get('ema_5', row.get('Close', 0))))
         chart_data['ema_15'].append(float(row.get('ema_15', row.get('ema_20', row.get('Close', 0)))))
-        chart_data['rsi'].append(float(row.get('rsi_5', row.get('rsi_7', 50))))
+        chart_data['rsi'].append(rsi_val)
         chart_data['volume_spike'].append(bool(row.get('volume_spike', False)))
     
     for trade in trades:
@@ -409,7 +414,7 @@ def create_ultimate_dashboard():
     
     logs = generate_logs(trades, test_prep, metrics)
     insights = generate_insights(trades, metrics)
-    chart_data = prepare_chart_data(test_15, trades)
+    chart_data = prepare_chart_data(test_prep, trades)
     
     winning_trades = [t for t in trade_analysis if t['is_winner']]
     losing_trades = [t for t in trade_analysis if not t['is_winner']]
@@ -857,7 +862,7 @@ def generate_html(data):
     <!-- Header -->
     <header class="header">
         <div class="header-left">
-            <div class="symbol-name">NQ Futures Scalping Strategy (CME)</div>
+            <div class="symbol-name">NQ E-mini ($2/pt) | Scalping Strategy</div>
             <div class="header-stats">
                 <div class="stat-item">
                     <div class="stat-value">Jul 1 - Sep 26, 2025</div>
@@ -1167,7 +1172,7 @@ def generate_html(data):
             // Entry markers
             const entryMarkers = chartData.trade_markers.map(t => ({{
                 x: chartData.dates[t.entry_idx],
-                y: chartData.opens[t.entry_idx],
+                y: t.entry_price,
                 type: 'scatter',
                 mode: 'markers',
                 marker: {{ 
@@ -1175,7 +1180,7 @@ def generate_html(data):
                     size: 12,
                     color: t.direction === 'long' ? '#00c853' : '#ff5252'
                 }},
-                name: `Entry #{{t.entry_idx}}`,
+                name: `Entry #{{t.entry_idx}}: ${{t.entry_price.toFixed(0)}}`,
                 xaxis: 'x',
                 yaxis: 'y'
             }}));
@@ -1183,7 +1188,7 @@ def generate_html(data):
             // Exit markers
             const exitMarkers = chartData.trade_markers.map(t => ({{
                 x: chartData.dates[t.exit_idx],
-                y: chartData.opens[t.exit_idx],
+                y: t.exit_price,
                 type: 'scatter',
                 mode: 'markers',
                 marker: {{ 
@@ -1191,7 +1196,7 @@ def generate_html(data):
                     size: 12,
                     color: t.profit_dollars > 0 ? '#00c853' : '#ff5252'
                 }},
-                name: `Exit: ${{t.profit_dollars.toFixed(0)}}`,
+                name: `Exit: ${{t.exit_price.toFixed(0)}} ({{t.profit_dollars > 0 ? '+' : ''}}${{t.profit_dollars.toFixed(0)}})`,
                 xaxis: 'x',
                 yaxis: 'y'
             }}));
