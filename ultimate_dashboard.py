@@ -186,7 +186,8 @@ def generate_insights(trades, metrics):
     insights['recommendations'].append("15min timeframe provides better signal quality than 1min")
     insights['recommendations'].append("Volume spike threshold of 1.0x effectively filters false signals")
     insights['recommendations'].append("ML filter (Random Forest) improves win rate by filtering weak signals")
-    insights['recommendations'].append(f"Net profit after fees: ${metrics['net_profit']:.2f} (Gross profit: ${gross_wins:.2f}, Gross loss: ${gross_losses:.2f})")
+    insights['recommendations'].append(f"Net profit: ${metrics['net_profit']:.2f} (fees: ${metrics['total_fees']:.2f} included, final capital: ${metrics['final_capital']:.2f})")
+    insights['recommendations'].append(f"Trade P/L values already include $10/trade fee deduction")
     
     return insights
 
@@ -1019,6 +1020,7 @@ def generate_html(data):
                         <li>Take Profit: +2.4% from entry (4:1 target)</li>
                         <li>Stop Loss: -0.6% from entry</li>
                         <li>Realized R/R: {rr_display} (from actual trades)</li>
+                        <li><strong>Note:</strong> SL exits may exceed -0.6% due to market gaps/slippage - actual exits shown in trade log</li>
                     </ul>
                 </div>
                 

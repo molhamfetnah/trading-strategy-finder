@@ -27,16 +27,19 @@ def calculate_metrics(trades: List[Dict], initial_capital: float = 10000) -> Dic
             'avg_loss': 0,
             'final_capital': initial_capital,
             'expected_value': 0,
-            'max_consecutive_losses': 0
+            'max_consecutive_losses': 0,
+            'total_profit': 0
         }
+    
+    total_fees = sum(t.get('fees_paid', 10) for t in trades)
+    # profit_dollars already includes fee deduction, so net_profit is what we have
+    net_profit = sum(t['profit_dollars'] for t in trades)
+    # gross_profit is before fees (add fees back to get pre-fee total)
+    gross_profit = net_profit + total_fees
     
     profits = [t['profit_dollars'] for t in trades]
     winning_trades = [p for p in profits if p > 0]
     losing_trades = [p for p in profits if p <= 0]
-    
-    total_fees = sum(t.get('fees_paid', 10) for t in trades)
-    gross_profit = sum(profits) + total_fees
-    net_profit = sum(profits)
     
     gross_wins = sum(winning_trades) if winning_trades else 0
     gross_loss = abs(sum(losing_trades)) if losing_trades else 1
@@ -53,10 +56,13 @@ def calculate_metrics(trades: List[Dict], initial_capital: float = 10000) -> Dic
     
     max_consecutive_losses = calculate_max_consecutive_losses(trades)
     
+    final_capital = initial_capital + net_profit
+    
     return {
         'gross_profit': gross_profit,
         'total_fees': total_fees,
         'net_profit': net_profit,
+        'total_profit': net_profit,  # Alias for backward compatibility
         'profit_factor': profit_factor,
         'win_rate': win_rate,
         'sharpe_ratio': sharpe_ratio,
@@ -64,7 +70,7 @@ def calculate_metrics(trades: List[Dict], initial_capital: float = 10000) -> Dic
         'total_trades': len(trades),
         'avg_profit': np.mean(winning_trades) if winning_trades else 0,
         'avg_loss': np.mean(losing_trades) if losing_trades else 0,
-        'final_capital': trades[-1]['capital_after'] if trades else initial_capital,
+        'final_capital': final_capital,
         'expected_value': expected_value,
         'max_consecutive_losses': max_consecutive_losses
     }

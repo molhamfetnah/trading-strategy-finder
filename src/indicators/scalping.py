@@ -46,9 +46,17 @@ def calculate_volume_spike(df: pd.DataFrame, threshold: float = 2.0, use_percent
     return df
 
 
-def calculate_scalping_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculate all scalping indicators (RSI, EMA, Volume)."""
-    df = calculate_rsi(df, 7)
-    df = calculate_ema(df, [5, 20])
+def calculate_scalping_indicators(df: pd.DataFrame, rsi_period: int = 5, ema_periods: list = None) -> pd.DataFrame:
+    """Calculate all scalping indicators (RSI, EMA, Volume).
+    
+    Args:
+        df: DataFrame with OHLCV data
+        rsi_period: RSI period (default 5)
+        ema_periods: List of EMA periods (default [5, 15])
+    """
+    if ema_periods is None:
+        ema_periods = [5, 15]
+    df = calculate_rsi(df, rsi_period)
+    df = calculate_ema(df, ema_periods)
     df = calculate_volume_spike(df)
     return df
