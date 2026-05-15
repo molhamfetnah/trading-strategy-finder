@@ -310,6 +310,13 @@ def apply_ml_filter(df, ml_data):
     
     return signals
 
+def apply_rsi_entry_filters(signals, rsi_values, oversold=25, overbought=75):
+    """Keep long entries only when oversold and short entries only when overbought."""
+    filtered = signals.copy()
+    filtered[(filtered == 1) & (rsi_values >= oversold)] = 0
+    filtered[(filtered == -1) & (rsi_values <= overbought)] = 0
+    return filtered
+
 def resample_15min(df):
     df = df.copy()
     if 'DateTime' not in df.columns:
@@ -323,7 +330,16 @@ def resample_15min(df):
     resampled['Time'] = resampled['DateTime'].dt.strftime('%H:%M:%S')
     return resampled
 
-def run_backtest_15min(signals, closes, df, initial_capital=10000, stop_loss=0.6, take_profit=2.4, fee_per_trade=10.0):
+def run_backtest_15min(
+    signals,
+    closes,
+    df,
+    initial_capital=10000,
+    stop_loss=0.6,
+    take_profit=2.4,
+    fee_per_trade=10.0,
+    point_value=2.0
+):
     capital = initial_capital
     in_pos = 0
     entry_price = 0
@@ -341,7 +357,8 @@ def run_backtest_15min(signals, closes, df, initial_capital=10000, stop_loss=0.6
             
             if pnl_pct <= -stop_loss or pnl_pct >= take_profit:
                 exit_reason = 'SL' if pnl_pct <= -stop_loss else 'TP'
-                pnl_dollars = (pnl_pct / 100) * capital - fee_per_trade
+                points_moved = (closes[i] - entry_price) if in_pos == 1 else (entry_price - closes[i])
+                pnl_dollars = (points_moved * point_value) - fee_per_trade
                 trades.append({
                     'entry_idx': entry_idx,
                     'exit_idx': i,
@@ -387,7 +404,7 @@ def create_ultimate_dashboard():
     
     print("Applying ML filter to test data...")
     signals = apply_ml_filter(test_prep, ml_data)
-    signals[test_prep['rsi_5'].values >= 25] = 0
+    signals = apply_rsi_entry_filters(signals, test_prep['rsi_5'].values, oversold=25, overbought=75)
     
     print("\nRunning backtest...")
     trades, final_capital = run_backtest_15min(
@@ -950,10 +967,6 @@ def generate_html(data):
                         <div class="metric-box">
                             <div class="metric-value">{metrics['max_consecutive_losses']}</div>
                             <div class="metric-label">Max Losing Streak</div>
-                        </div>
-                        <div class="metric-box">
-                            <div class="metric-value">${metrics['total_fees']:.2f}</div>
-                            <div class="metric-label">Total Fees</div>
                         </div>
                         <div class="metric-box">
                             <div class="metric-value">{len(trades)}</div>

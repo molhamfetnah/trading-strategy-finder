@@ -37,9 +37,9 @@ def test_calculate_scalping_indicators():
     df = load_data('1min.csv')
     df = filter_2025(df.head(100))
     df = calculate_scalping_indicators(df)
-    assert 'rsi_7' in df.columns
+    assert 'rsi_5' in df.columns
     assert 'ema_5' in df.columns
-    assert 'ema_20' in df.columns
+    assert 'ema_15' in df.columns
     assert 'volume_spike' in df.columns
 
 
