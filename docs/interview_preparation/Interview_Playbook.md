@@ -9,6 +9,7 @@ Structure
 3) Key talking points and metrics to emphasize
 4) Practice Q&A with model answers and timers
 5) Demo checklist (commands & smoke-tests)
+6) Study docs: Parameter_Rationale.md and Technical_Spec_Walkthrough.md
 
 1-minute elevator pitch
 - "Built a reproducible pipeline that generates rule-based signals, filters them with an ML model, runs per-contract backtests on NQ futures, and produces an interactive dashboard that explains trades and provides a playbook for integration into live systems."
@@ -44,4 +45,4 @@ Files to show during interview
 
 Saving and next actions
 - File saved at docs/interview_preparation/Interview_Playbook.md
-- Next: create practice_questions.md and slide notes if desired.
+- Next: study Parameter_Rationale.md first, then Technical_Spec_Walkthrough.md.
