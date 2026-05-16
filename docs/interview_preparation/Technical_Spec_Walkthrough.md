@@ -38,20 +38,59 @@ The candidate role is data scientist, so the main contribution is:
 - Owns end-to-end flow: load/split/resample, indicators, rule signals, ML filtering, backtest, metrics, JSON output, and HTML dashboard generation.
 - This is the file to present first in interview code walkthroughs because it connects all core modules into one reproducible run.
 
+How to run:
+- `python3 ultimate_dashboard.py`
+
+Expected outcome:
+- Console prints pipeline progress (load, resample, train, backtest, metrics).
+- Creates/updates:
+  - `docs/dashboard_data.json`
+  - `docs/ultimate_trading_dashboard.html`
+- Final console line indicates dashboard generation complete.
+
 ### `main.py`
 - General multi-strategy execution entrypoint for broader project runs.
 - Useful to explain that the project supports strategy comparison beyond the dashboard-focused pipeline.
 - In interview language: this demonstrates extensibility and experiment orchestration across strategy variants.
+
+How to run:
+- `python3 main.py`
+
+Expected outcome:
+- Runs 3 strategy paths (scalping/day-trading/intraday) if enough data is available.
+- Prints per-strategy metrics and comparison summary in terminal.
+- Shows best strategy recommendation from comparison report logic.
+- Produces analysis output in console (not a dedicated new HTML artifact).
 
 ### `fast_optimizer.py`
 - Faster optimization path used to iterate parameter candidates quickly.
 - Tradeoff: speed and iteration throughput vs deeper exhaustive search.
 - In interview language: this supports practical research loops when you need many experiments quickly.
 
+How to run:
+- `python3 fast_optimizer.py`
+
+Expected outcome:
+- Runs random-search optimization (default 200 tests in `__main__`).
+- Prints progress and “new best” configurations during search.
+- Writes:
+  - `best_config.txt` (best parameter set)
+- Also updates RSI thresholds in `src/signals/base_signals.py` when a best config is saved (important side effect).
+
 ### `live_dashboard.py`
 - Live/demo-oriented dashboard script for runtime-style visualization workflows.
 - Shows how analysis artifacts can move from pure backtest reporting to operational monitoring views.
 - In interview language: this bridges research outputs and real-time team usage.
+
+How to run:
+- `python3 live_dashboard.py`
+
+Expected outcome:
+- Runs a console-based “live” simulation and a 3-strategy comparison.
+- Generates/updates:
+  - `docs/live_trading_dashboard.html`
+  - `docs/equity_curve_dashboard.html`
+- Prints summary and output file paths at the end.
 
 ## 4. Data layer
 
