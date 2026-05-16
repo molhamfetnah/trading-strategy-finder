@@ -31,7 +31,29 @@ The candidate role is data scientist, so the main contribution is:
 9. `calculate_metrics()` summarizes performance.
 10. `generate_html()` builds the final dashboard.
 
-## 3. Data layer
+## 3. Entry-point and orchestration files
+
+### `ultimate_dashboard.py`
+- Main proof-of-concept pipeline for the submitted technical task.
+- Owns end-to-end flow: load/split/resample, indicators, rule signals, ML filtering, backtest, metrics, JSON output, and HTML dashboard generation.
+- This is the file to present first in interview code walkthroughs because it connects all core modules into one reproducible run.
+
+### `main.py`
+- General multi-strategy execution entrypoint for broader project runs.
+- Useful to explain that the project supports strategy comparison beyond the dashboard-focused pipeline.
+- In interview language: this demonstrates extensibility and experiment orchestration across strategy variants.
+
+### `fast_optimizer.py`
+- Faster optimization path used to iterate parameter candidates quickly.
+- Tradeoff: speed and iteration throughput vs deeper exhaustive search.
+- In interview language: this supports practical research loops when you need many experiments quickly.
+
+### `live_dashboard.py`
+- Live/demo-oriented dashboard script for runtime-style visualization workflows.
+- Shows how analysis artifacts can move from pure backtest reporting to operational monitoring views.
+- In interview language: this bridges research outputs and real-time team usage.
+
+## 4. Data layer
 
 ### `src/data/loader.py`
 - Normalizes CSV input into the expected OHLCV schema.
@@ -45,7 +67,7 @@ The candidate role is data scientist, so the main contribution is:
 - Converts 1-minute bars into 15-minute bars.
 - 15-minute bars reduce noise and match the scalping use case better than raw 1-minute bars for the demo.
 
-## 4. Indicator layer
+## 5. Indicator layer
 
 ### `src/indicators/scalping.py`
 - RSI(5): short momentum/exhaustion detector.
@@ -58,7 +80,7 @@ Why these values:
 - enough smoothing to avoid pure noise,
 - and easy explanation in interview form.
 
-## 5. Signal layer
+## 6. Signal layer
 
 ### Rule-based signals
 - `generate_scalping_signals()` turns indicator states into `-1, 0, 1`.
@@ -71,7 +93,7 @@ Why these values:
 
 This is important because the earlier bug made the logic one-sided.
 
-## 6. ML filter layer
+## 7. ML filter layer
 
 ### `src/signals/ml_filter.py`
 - Adds features such as price changes, volume ratios, RSI, EMA spread, and volatility.
@@ -88,7 +110,7 @@ Why `n_estimators=100` and `max_depth=10`:
 - 100 trees gives stable results.
 - depth 10 keeps it from overfitting a small dataset.
 
-## 7. Backtest layer
+## 8. Backtest layer
 
 ### `run_backtest_15min()`
 - Enters a position when a signal appears.
@@ -105,7 +127,7 @@ Why this matters:
 - Converts trade results into net profit, win rate, profit factor, drawdown, Sharpe, and expected value.
 - These are the numbers the dashboard and interview talk track rely on.
 
-## 8. Dashboard layer
+## 9. Dashboard layer
 
 ### `generate_html()`
 - Creates the visual report.
@@ -115,7 +137,7 @@ Why the dashboard exists:
 - the final interview is not just “did it work?” but “can you explain it?”
 - the dashboard turns strategy mechanics into a story.
 
-## 9. What to say in the interview
+## 10. What to say in the interview
 
 1. “I started with raw 1-minute data and reshaped it into 15-minute candles to reduce noise.”
 2. “I used RSI, EMA, and volume because they capture momentum, trend, and participation.”
@@ -123,7 +145,7 @@ Why the dashboard exists:
 4. “I corrected the P/L model to contract economics, which is the right framing for futures.”
 5. “I built the dashboard so the team lead can integrate the playbook into the live system.”
 
-## 10. Hidden assumptions and caveats
+## 11. Hidden assumptions and caveats
 
 - No advanced slippage model beyond fixed fees.
 - No multi-contract sizing.
@@ -131,4 +153,3 @@ Why the dashboard exists:
 - The ML filter is a baseline, not a final production model.
 
 These are good points to mention because they show engineering honesty.
-
